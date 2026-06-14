@@ -1,0 +1,131 @@
+<evaluation>
+  <!--
+    These evaluations test whether an LLM can correctly drive the maltego_mcp
+    server. Because the server starts with no data (the "data" is the graph the
+    agent builds), every question is a self-contained task that uses only
+    OFFLINE, network-free operations so the answer is deterministic and STABLE.
+    Each question is independent and starts from a fresh server / new graph.
+  -->
+  <qa_pair>
+    <question>Create a new graph. Add a Domain entity with value "example.com". Run the transform that creates a Website entity from a domain on it. Then add an Email Address entity "bob@example.com" and run the transform that extracts a domain from an email address on that email. After all of this, how many entities are on the graph? Answer with a single integer.</question>
+    <answer>3</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Without running anything, determine how many of the server's built-in transforms can accept a Maltego Domain entity as their input. Answer with a single integer.</question>
+    <answer>2</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>What is the Maltego main property name used for the IPv4 Address entity type in this server's entity catalog? Answer with the exact property name only.</question>
+    <answer>ipv4-address</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Create a graph and add a URL entity with the value "https://www.example.com:8443/path?x=1". Run the transform that extracts a domain from a URL on it. What is the value of the resulting Domain entity? Answer with the value only.</question>
+    <answer>www.example.com</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Create a graph and add an Email Address entity with the value "Alice@SUB.Example.COM". Run the transform that extracts the domain from an email address on it. What is the value of the Domain entity that is produced? Answer with the value only.</question>
+    <answer>sub.example.com</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Create a graph. Add a Domain entity "a.com" and an IPv4 Address entity "1.1.1.1", then add a link from the domain to the IP labeled "resolves to". Now delete the Domain entity. After the deletion, how many links remain on the graph? Answer with a single integer.</question>
+    <answer>0</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Which provider owns the transform that performs a reverse DNS (PTR) lookup turning an IPv4 address into a DNS name? Answer with the provider name only.</question>
+    <answer>local</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Using the entity-type catalog, how many entity types belong to the "infrastructure" category? Answer with a single integer.</question>
+    <answer>13</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Create a graph and add a Domain entity "dup.com". Add a Domain entity with the value "dup.com" again using the default settings. How many entities are on the graph afterwards? Answer with a single integer.</question>
+    <answer>1</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Create a graph and add an Email Address entity with the value "no-at-symbol-here". Run the transform that extracts a domain from an email address on it. Respond with exactly Yes or No: did the transform add any new entity to the graph?</question>
+    <answer>No</answer>
+  </qa_pair>
+
+  <!-- AI-assisted investigation platform scenarios (offline / deterministic) -->
+  <qa_pair>
+    <question>Run the "Email Investigation" machine on the seed value "joe@corp.com" with network access disabled (offline / passive parse-only). After it finishes, how many entities are on the graph? Answer with a single integer.</question>
+    <answer>3</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>How many investigation machines (reusable workflow templates) does the server provide? Answer with a single integer.</question>
+    <answer>3</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Counting every transform the server knows about (regardless of whether an API key is configured), how many transforms accept a Maltego IPv4 Address entity as input? Answer with a single integer.</question>
+    <answer>4</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Excluding the built-in "local" provider, how many external OSINT providers does the server expose? Answer with a single integer.</question>
+    <answer>6</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Which provider does the server use the environment variable HIBP_API_KEY for? Answer with the provider's short name (id) only.</question>
+    <answer>hibp</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>How many automatic graph layout algorithms does the server support? Answer with a single integer.</question>
+    <answer>3</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Create a graph and import the following CSV (header included): "type,value" then rows "Domain,a.com", "Email,x@a.com", "IPv4Address,2.2.2.2", and "Bogus,zz". How many rows are skipped because their type is unknown? Answer with a single integer.</question>
+    <answer>1</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Create a graph and import this CSV with a header "type,value,link_to" and rows: "Domain,hub.com," then "IPv4Address,5.5.5.5,hub.com" then "Email,a@hub.com,hub.com". Then identify the interesting pivot entities. What is the value of the single top-ranked pivot entity? Answer with the value only.</question>
+    <answer>hub.com</answer>
+  </qa_pair>
+
+  <!-- Investigation-intelligence scenarios (offline / deterministic) -->
+  <qa_pair>
+    <question>Run the Email Investigation machine on "bob@example.com" with network access disabled. Then list the investigation steps recorded in Investigation Memory. How many steps were recorded? Answer with a single integer.</question>
+    <answer>2</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Run the Email Investigation machine on "bob@example.com" with network disabled. A Domain entity for example.com is created. Using the investigation memory, which transform discovered that Domain entity? Answer with the transform name only.</question>
+    <answer>parse.email_to_domain</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Create a graph and add a Domain entity "seed.com" manually (not via any transform). Then compute its intelligence-quality scores. What is its source_reliability score? Answer with the number only.</question>
+    <answer>1.0</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Using the unified query detector, when the query "https://shop.example.com/cart" is investigated, what entity value is used as the seed (the host extracted from the URL)? Answer with the value only.</question>
+    <answer>shop.example.com</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Run the Email Investigation machine on "bob@example.com" with network disabled, then ask the Next Best Action engine for recommendations. Respond with exactly Yes or No: does it recommend running "parse.email_to_domain" again on the original email entity?</question>
+    <answer>No</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Run the Email Investigation machine on "bob@example.com" offline. The resulting Domain entity example.com was discovered only by the built-in local provider. What is its confidence score? Answer with the number only.</question>
+    <answer>0.9</answer>
+  </qa_pair>
+
+  <!-- Export round-trip, link management, and entity-catalog scenarios -->
+  <qa_pair>
+    <question>Create a graph and import this CSV (header "type,value,link_to") with rows "Domain,a.com," and "IPv4Address,1.2.3.4,a.com". Export the graph to CSV, then import that exported CSV into a brand-new graph. How many links does the new graph have? Answer with a single integer.</question>
+    <answer>1</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Create a graph, add a Domain "a.com" and an IPv4 Address "1.1.1.1", and add one link between them. Then delete that link. How many links remain on the graph? Answer with a single integer.</question>
+    <answer>0</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>With no Censys credentials configured in the environment, is the Censys transform "censys.ip_to_services" available to run? Respond with exactly Yes or No.</question>
+    <answer>No</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>In the server's entity-type catalog, what is the main property field name used for the Maltego Website entity type? Answer with the field name only.</question>
+    <answer>fqdn</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>In the server's entity-type catalog, what is the main property field name used for the Maltego Company entity type? Answer with the field name only.</question>
+    <answer>title</answer>
+  </qa_pair>
+</evaluation>

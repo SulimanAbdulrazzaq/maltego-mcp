@@ -1,0 +1,24 @@
+{
+  "name": "maltego-mcp",
+  "owner": {
+    "name": "SulimanAbdulrazzaq",
+    "url": "https://github.com/SulimanAbdulrazzaq"
+  },
+  "metadata": {
+    "description": "Marketplace hosting the Maltego MCP investigation copilot plugin.",
+    "version": "0.2.0"
+  },
+  "plugins": [
+    {
+      "name": "maltego-mcp",
+      "source": {
+        "source": "github",
+        "repo": "SulimanAbdulrazzaq/maltego-mcp"
+      },
+      "description": "AI-assisted Maltego CE investigation copilot: build/expand .mtgx graphs, run OSINT transforms (VirusTotal, Shodan, SecurityTrails, Censys, Hunter.io, HIBP), score and reason over findings, record investigation memory, and generate reports.",
+      "version": "0.2.0",
+      "license": "MIT",
+      "keywords": ["maltego", "osint", "mcp", "graph", "investigation"]
+    }
+  ]
+}

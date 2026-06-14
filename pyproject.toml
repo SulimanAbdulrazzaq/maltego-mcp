@@ -1,0 +1,39 @@
+[project]
+name = "maltego-mcp"
+version = "0.2.0"
+description = "MCP server for driving Maltego CE investigation graphs via the native .mtgx file format, with an extensible transform-provider layer."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "maltego-mcp contributors" }]
+keywords = ["mcp", "maltego", "osint", "graph", "model-context-protocol"]
+
+[project.urls]
+Homepage = "https://github.com/SulimanAbdulrazzaq/maltego-mcp"
+Repository = "https://github.com/SulimanAbdulrazzaq/maltego-mcp"
+Issues = "https://github.com/SulimanAbdulrazzaq/maltego-mcp/issues"
+
+dependencies = [
+    "mcp[cli]>=1.2.0",
+    "pydantic>=2.6",
+    "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[project.scripts]
+maltego-mcp = "maltego_mcp.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/maltego_mcp"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
