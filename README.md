@@ -69,6 +69,20 @@ shell before starting Claude Code to enable those providers (see
 > Prefer not to use `uv`? See [Manual / pip install](#manual--pip-install) and point the MCP
 > command at the venv's `maltego-mcp` executable instead.
 
+### Windows troubleshooting (first launch)
+
+On Windows, the very first launch occasionally fails with
+`failed to rename ... Access is denied (os error 5)` while unpacking `pywin32` (a transitive
+dependency of `mcp`). This is **Windows Defender** briefly locking the files during real-time
+scanning — not a bug in the plugin. Fixes:
+
+- **Just retry** — toggle the plugin off/on or restart Claude Code; it succeeds once Defender
+  finishes scanning and the dependency is cached (verified: it works on the second attempt).
+- Or pre-warm the cache once from a terminal: `uvx --from <path-to-this-repo> maltego-mcp`
+  (Ctrl-C after it prints nothing — it's a stdio server), then retry in Claude Code.
+- Or add an exclusion for `%LOCALAPPDATA%\uv\cache` in Windows Security → Virus & threat
+  protection → Exclusions.
+
 ## Manual / pip install
 
 ```bash
