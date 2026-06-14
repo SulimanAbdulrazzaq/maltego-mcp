@@ -51,27 +51,32 @@ from maltego_mcp import entities as entity_catalog
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from maltego_mcp.graph.graph_store import Entity, Graph, Link
 
-# Namespaces
+# Namespaces (match a real Maltego export).
 GRAPHML_NS = "http://graphml.graphdrawing.org/xmlns"
 MTG_NS = "http://maltego.paterva.com/xml/mtgx"
 XSI_NS = "http://www.w3.org/2001/XMLSchema-instance"
 YFILES_NS = "http://www.yworks.com/xml/graphml"
 
-# GraphML <key> ids reused throughout the document.
+# GraphML <key> ids, mirroring Maltego's own files exactly:
+#   d0 graphml resources, d1-d3 port graphics, d4 MaltegoEntity (node),
+#   d5 node graphics (holds Maltego's EntityRenderer/Position), d6 MaltegoLink
+#   (edge), d7 edge graphics.
+RESOURCES_KEY = "d0"
 NODE_KEY = "d4"
-EDGE_KEY = "d6"
-# Node-graphics key carrying (x, y) layout positions. Declared only when at
-# least one entity has a position; Maltego ignores unknown data keys, so this is
-# a safe, additive way to persist layout information inside the graph file.
 NODE_GRAPHICS_KEY = "d5"
-
-# Default node geometry used when emitting layout positions.
-_NODE_W = 30.0
-_NODE_H = 30.0
+EDGE_KEY = "d6"
 
 # Link constants used by Maltego for manually-created links.
 MANUAL_LINK_TYPE = "maltego.link.manual-link"
 MANUAL_LINK_LABEL_PROP = "maltego.link.manual.type"
+
+# Default grid placement for entities that have no explicit layout position.
+# Maltego reads a "center" from every node's EntityRenderer/Position; a missing
+# position is what triggers its NullPointerException on import, so we ALWAYS emit
+# one.
+_GRID_SPACING_X = 220.0
+_GRID_SPACING_Y = 160.0
+_GRID_COLS = 6
 
 # The single graphml file Maltego reads inside the archive.
 GRAPH_MEMBER = "Graphs/Graph1.graphml"
@@ -90,6 +95,26 @@ def _q(ns: str, tag: str) -> str:
     return f"{{{ns}}}{tag}"
 
 
+def _positions_for(graph: "Graph") -> dict:
+    """Return an (x, y) position for EVERY entity.
+
+    Uses each entity's explicit ``position`` when set; otherwise assigns a
+    deterministic grid slot so Maltego always finds a node center on import.
+    """
+
+    positions = {}
+    fallback = 0
+    for entity in graph.entities:
+        if entity.position is not None:
+            positions[entity.id] = (float(entity.position[0]), float(entity.position[1]))
+        else:
+            col = fallback % _GRID_COLS
+            row = fallback // _GRID_COLS
+            positions[entity.id] = (col * _GRID_SPACING_X, row * _GRID_SPACING_Y)
+            fallback += 1
+    return positions
+
+
 def _property_element(name: str, display_name: str, value: str, ptype: str = "string") -> ET.Element:
     prop = ET.Element(
         _q(MTG_NS, "Property"),
@@ -100,7 +125,7 @@ def _property_element(name: str, display_name: str, value: str, ptype: str = "st
     return prop
 
 
-def _entity_node(entity: "Entity") -> ET.Element:
+def _entity_node(entity: "Entity", x: float, y: float) -> ET.Element:
     node = ET.Element(_q(GRAPHML_NS, "node"), {"id": entity.id})
     data = ET.SubElement(node, _q(GRAPHML_NS, "data"), {"key": NODE_KEY})
     mtg_entity = ET.SubElement(
@@ -123,22 +148,11 @@ def _entity_node(entity: "Entity") -> ET.Element:
         note = ET.SubElement(mtg_entity, _q(MTG_NS, "Notes"))
         note.text = entity.notes
 
-    # Persist layout position (if any) as yFiles node graphics. This is an
-    # additive data element keyed by NODE_GRAPHICS_KEY; clients that do not
-    # understand it (including Maltego) simply ignore it.
-    if entity.position is not None:
-        gdata = ET.SubElement(node, _q(GRAPHML_NS, "data"), {"key": NODE_GRAPHICS_KEY})
-        shape = ET.SubElement(gdata, _q(YFILES_NS, "ShapeNode"))
-        ET.SubElement(
-            shape,
-            _q(YFILES_NS, "Geometry"),
-            {
-                "x": f"{float(entity.position[0]):.2f}",
-                "y": f"{float(entity.position[1]):.2f}",
-                "width": f"{_NODE_W:.1f}",
-                "height": f"{_NODE_H:.1f}",
-            },
-        )
+    # Maltego's native node position lives in the d5 (nodegraphics) data as an
+    # EntityRenderer/Position. This is what Maltego reads as the node "center".
+    gdata = ET.SubElement(node, _q(GRAPHML_NS, "data"), {"key": NODE_GRAPHICS_KEY})
+    renderer = ET.SubElement(gdata, _q(MTG_NS, "EntityRenderer"))
+    ET.SubElement(renderer, _q(MTG_NS, "Position"), {"x": f"{x:.1f}", "y": f"{y:.1f}"})
     return node
 
 
@@ -158,44 +172,51 @@ def _link_edge(link: "Link") -> ET.Element:
     return edge
 
 
+def _add_key(root: ET.Element, attrs: dict) -> None:
+    ET.SubElement(root, _q(GRAPHML_NS, "key"), attrs)
+
+
 def build_graphml(graph: "Graph") -> bytes:
-    """Return the GraphML document for ``graph`` as UTF-8 encoded bytes."""
+    """Return the GraphML document for ``graph`` as UTF-8 encoded bytes.
+
+    The structure mirrors a real Maltego export: the full d0-d7 key set, a
+    ``graph id="G"``, nodes carrying both a MaltegoEntity (d4) and a native
+    EntityRenderer/Position (d5), edges carrying a MaltegoLink (d6), and a
+    trailing yFiles resources element.
+    """
 
     # Register namespaces so ElementTree emits the expected prefixes.
     ET.register_namespace("", GRAPHML_NS)
     ET.register_namespace("mtg", MTG_NS)
     ET.register_namespace("xsi", XSI_NS)
-
-    has_positions = any(e.position is not None for e in graph.entities)
-    if has_positions:
-        ET.register_namespace("y", YFILES_NS)
+    ET.register_namespace("y", YFILES_NS)
 
     root = ET.Element(_q(GRAPHML_NS, "graphml"))
 
-    ET.SubElement(
-        root,
-        _q(GRAPHML_NS, "key"),
-        {"id": NODE_KEY, "for": "node", "attr.name": "MaltegoEntity"},
-    )
-    ET.SubElement(
-        root,
-        _q(GRAPHML_NS, "key"),
-        {"id": EDGE_KEY, "for": "edge", "attr.name": "MaltegoLink"},
-    )
-    if has_positions:
-        ET.SubElement(
-            root,
-            _q(GRAPHML_NS, "key"),
-            {"id": NODE_GRAPHICS_KEY, "for": "node", "yfiles.type": "nodegraphics"},
-        )
+    # Key declarations, exactly as Maltego writes them.
+    _add_key(root, {"for": "graphml", "id": RESOURCES_KEY, "yfiles.type": "resources"})
+    _add_key(root, {"for": "port", "id": "d1", "yfiles.type": "portgraphics"})
+    _add_key(root, {"for": "port", "id": "d2", "yfiles.type": "portgeometry"})
+    _add_key(root, {"for": "port", "id": "d3", "yfiles.type": "portuserdata"})
+    _add_key(root, {"attr.name": "MaltegoEntity", "for": "node", "id": NODE_KEY})
+    _add_key(root, {"for": "node", "id": NODE_GRAPHICS_KEY, "yfiles.type": "nodegraphics"})
+    _add_key(root, {"attr.name": "MaltegoLink", "for": "edge", "id": EDGE_KEY})
+    _add_key(root, {"for": "edge", "id": "d7", "yfiles.type": "edgegraphics"})
+
+    positions = _positions_for(graph)
 
     graph_el = ET.SubElement(
-        root, _q(GRAPHML_NS, "graph"), {"edgedefault": "directed"}
+        root, _q(GRAPHML_NS, "graph"), {"edgedefault": "directed", "id": "G"}
     )
     for entity in graph.entities:
-        graph_el.append(_entity_node(entity))
+        x, y = positions[entity.id]
+        graph_el.append(_entity_node(entity, x, y))
     for link in graph.links:
         graph_el.append(_link_edge(link))
+
+    # Trailing yFiles resources element (present in real Maltego graphs).
+    res_data = ET.SubElement(root, _q(GRAPHML_NS, "data"), {"key": RESOURCES_KEY})
+    ET.SubElement(res_data, _q(YFILES_NS, "Resources"))
 
     ET.indent(root, space="  ")
     body = ET.tostring(root, encoding="unicode")
@@ -206,8 +227,8 @@ def write_mtgx(graph: "Graph", path: str) -> str:
     """Write ``graph`` to ``path`` as a Maltego ``.mtgx`` archive.
 
     Returns the path written. The archive contains the GraphML graph plus a
-    minimal ``version.properties`` member for compatibility with the Maltego
-    desktop client.
+    minimal ``version.properties`` member, and maltego_mcp sidecar members
+    (Investigation Memory, entity scores) that Maltego ignores.
     """
 
     graphml_bytes = build_graphml(graph)

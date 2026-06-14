@@ -12,8 +12,8 @@
     {
       "name": "maltego-mcp",
       "source": {
-        "source": "github",
-        "repo": "SulimanAbdulrazzaq/maltego-mcp"
+        "source": "url",
+        "url": "https://github.com/SulimanAbdulrazzaq/maltego-mcp.git"
       },
       "description": "AI-assisted Maltego CE investigation copilot: build/expand .mtgx graphs, run OSINT transforms (VirusTotal, Shodan, SecurityTrails, Censys, Hunter.io, HIBP), score and reason over findings, record investigation memory, and generate reports.",
       "version": "0.2.0",

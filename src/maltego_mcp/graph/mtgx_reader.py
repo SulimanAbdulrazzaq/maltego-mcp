@@ -102,12 +102,12 @@ def _parse_entity_node(node_el: ET.Element) -> Optional[Entity]:
     notes_el = _find_descendant_by_local(mtg_entity, "Notes")
     notes = (notes_el.text or "") if notes_el is not None else ""
 
-    # Best-effort recovery of layout position from a yFiles Geometry element.
+    # Recover Maltego's native node position (EntityRenderer/Position x,y).
     position = None
-    geometry = _find_descendant_by_local(node_el, "Geometry")
-    if geometry is not None:
+    pos_el = _find_descendant_by_local(node_el, "Position")
+    if pos_el is not None:
         try:
-            position = (float(geometry.get("x")), float(geometry.get("y")))
+            position = (float(pos_el.get("x")), float(pos_el.get("y")))
         except (TypeError, ValueError):
             position = None
 

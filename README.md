@@ -1,8 +1,35 @@
-# maltego_mcp
+# 🕵️ maltego-mcp
+
+> **An AI-assisted Maltego CE investigation copilot.** Build, expand, analyze, and
+> report on OSINT investigation graphs through natural language — exported as native
+> Maltego `.mtgx` files.
+
+![MCP](https://img.shields.io/badge/MCP-server-blue)
+![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-plugin-7c3aed)
+![Python](https://img.shields.io/badge/python-3.10%2B-green)
+![License](https://img.shields.io/badge/license-MIT-lightgrey)
+![Tools](https://img.shields.io/badge/tools-49-orange)
+![Tests](https://img.shields.io/badge/tests-62%20passing-brightgreen)
 
 An [MCP](https://modelcontextprotocol.io) server that turns an LLM into a
 **Maltego CE investigation copilot** — an AI-assisted OSINT platform built on
 Maltego Community Edition's native graph format.
+
+---
+
+## Contents
+
+- [How it works](#how-it-works)
+- [Capabilities at a glance](#capabilities-at-a-glance)
+- [Install as a Claude Code plugin (recommended)](#install-as-a-claude-code-plugin-recommended)
+- [Manual / pip install](#manual--pip-install)
+- [Tools](#tools) · [full reference → `TOOLS.md`](TOOLS.md)
+- [Transforms by provider](#transforms-by-provider)
+- [Example workflows](#example-workflows)
+- [Verifying a graph opens in Maltego CE](#verifying-a-graph-opens-in-maltego-ce)
+- [Extending](#extending) · [Architecture](#architecture) · [Notes & limitations](#notes--limitations)
+
+## How it works
 
 Maltego CE has no live external API. Instead of trying to remote-control the
 desktop UI, this server uses Maltego's **native `.mtgx` graph file** (a ZIP
@@ -136,6 +163,10 @@ npx @modelcontextprotocol/inspector maltego-mcp
 ```
 
 ## Tools
+
+**49 tools.** The tables below group them by area. For the **complete reference with every
+argument, type, and default**, see [`TOOLS.md`](TOOLS.md) (auto-generated from the live tool
+schemas — the file an AI agent should read to learn the exact interface).
 
 ### Graph management
 | Tool | Description |

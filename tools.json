@@ -1,0 +1,1061 @@
+{
+  "tool_count": 49,
+  "tools": [
+    {
+      "name": "maltego_add_entity",
+      "summary": "Add an entity (node) to the active graph.",
+      "description": "Add an entity (node) to the active graph.\n\n    Use this to place domains, IPs, people, emails, etc. on the investigation\n    graph. By default duplicate entities (same type + value) are merged rather\n    than re-created. Unknown ``maltego.*`` types are accepted so investigations\n    are never blocked by a missing catalog entry.\n\n    Args:\n        params (AddEntityInput):\n            - type (str): Maltego entity type id (e.g. 'maltego.Domain').\n            - value (str): Primary value (e.g. 'example.com').\n            - properties (Optional[Dict[str,str]]): Extra properties.\n            - notes (Optional[str]): Free-text notes.\n            - dedupe (bool): Reuse existing identical entity (default True).\n\n    Returns:\n        str: Confirmation including the new (or existing) entity id, plus a hint\n        if the entity type is not in the known catalog.",
+      "arguments": [
+        {
+          "name": "type",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Maltego entity type id, e.g. 'maltego.Domain', 'maltego.IPv4Address', 'maltego.Person'. Use maltego_list_entity_types to discover options.",
+          "enum": null
+        },
+        {
+          "name": "value",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Primary value of the entity, e.g. 'example.com' or '8.8.8.8'.",
+          "enum": null
+        },
+        {
+          "name": "properties",
+          "type": "object / null",
+          "required": false,
+          "default": null,
+          "description": "Optional extra Maltego properties as a name->value map.",
+          "enum": null
+        },
+        {
+          "name": "notes",
+          "type": "string / null",
+          "required": false,
+          "default": null,
+          "description": "Optional free-text notes for the entity.",
+          "enum": null
+        },
+        {
+          "name": "dedupe",
+          "type": "boolean",
+          "required": false,
+          "default": true,
+          "description": "If true (default), reuse an existing entity with the same type+value instead of creating a duplicate.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_add_link",
+      "summary": "Add a directed link (edge) between two existing entities on the active graph.",
+      "description": "Add a directed link (edge) between two existing entities on the active graph.\n\n    Args:\n        params (AddLinkInput):\n            - source_id (str): Source entity id (e.g. 'n0').\n            - target_id (str): Target entity id (e.g. 'n1').\n            - label (Optional[str]): Label drawn on the link.\n\n    Returns:\n        str: Confirmation including the new link id, or an actionable error if an\n        endpoint id does not exist.",
+      "arguments": [
+        {
+          "name": "source_id",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Id of the source entity (e.g. 'n0').",
+          "enum": null
+        },
+        {
+          "name": "target_id",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Id of the target entity (e.g. 'n1').",
+          "enum": null
+        },
+        {
+          "name": "label",
+          "type": "string / null",
+          "required": false,
+          "default": "",
+          "description": "Optional label drawn on the link, e.g. 'resolves to'.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_apply_layout",
+      "summary": "Compute and assign (x, y) layout positions to entities on the active graph.",
+      "description": "Compute and assign (x, y) layout positions to entities on the active graph.\n\n    Positions are stored on the graph and persisted into the .mtgx on save. Re-run\n    after adding entities to refresh the layout. Layouts are deterministic.\n\n    Args:\n        params (ApplyLayoutInput):\n            - algorithm (str): 'hierarchical', 'radial', or 'force'.\n\n    Returns:\n        str: Confirmation with the number of entities positioned.",
+      "arguments": [
+        {
+          "name": "algorithm",
+          "type": "string",
+          "required": false,
+          "default": "hierarchical",
+          "description": "Layout algorithm: 'hierarchical', 'radial', or 'force'.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_create_graph",
+      "summary": "Create a new, empty in-memory Maltego graph and make it active.",
+      "description": "Create a new, empty in-memory Maltego graph and make it active.\n\n    The graph lives in server memory until you save it with maltego_save_graph,\n    which writes a .mtgx file that opens in Maltego CE. Subsequent entity/link\n    operations target the active graph.\n\n    Args:\n        params (CreateGraphInput):\n            - name (str): Unique name for the new graph.\n\n    Returns:\n        str: Confirmation message including the graph name.",
+      "arguments": [
+        {
+          "name": "name",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Name for the new graph (e.g. 'acme-investigation').",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_delete_entity",
+      "summary": "Delete an entity and all links touching it from the active graph.",
+      "description": "Delete an entity and all links touching it from the active graph.\n\n    Args:\n        params (DeleteEntityInput):\n            - entity_id (str): Entity to delete.\n\n    Returns:\n        str: Confirmation including how many links were removed, or an error.",
+      "arguments": [
+        {
+          "name": "entity_id",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Id of the entity to delete (its links are removed too).",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_delete_graph",
+      "summary": "Remove an open graph from the server's memory.",
+      "description": "Remove an open graph from the server's memory.\n\n    This does NOT delete any saved `.mtgx` file on disk — only the in-memory copy.\n    If the active graph is removed, another open graph becomes active (if any).\n\n    Args:\n        params (DeleteGraphInput):\n            - name (str): Name of the open graph to remove.\n\n    Returns:\n        str: Confirmation, or an actionable error if the name is unknown.",
+      "arguments": [
+        {
+          "name": "name",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Name of the open graph to remove from the server.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_delete_link",
+      "summary": "Delete a single link (edge) from the active graph by id.",
+      "description": "Delete a single link (edge) from the active graph by id.\n\n    Args:\n        params (DeleteLinkInput):\n            - link_id (str): Link id (e.g. 'e0'; see maltego_list_links).\n\n    Returns:\n        str: Confirmation, or a note if the link id was not found.",
+      "arguments": [
+        {
+          "name": "link_id",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Id of the link to delete (e.g. 'e0').",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_explain_entity",
+      "summary": "Explain one entity: its data, neighbours, and how it can be expanded.",
+      "description": "Explain one entity: its data, neighbours, and how it can be expanded.\n\n    Deterministic context for a single node: properties, notes, degree, incoming\n    and outgoing neighbours (with link labels), and which transforms apply to it\n    (and whether each is currently available).\n\n    Args:\n        params (ExplainEntityInput):\n            - entity_id (str): Entity id (e.g. 'n0').\n            - response_format (ResponseFormat): 'markdown' (default) or 'json'.\n\n    Returns:\n        str: Detailed explanation, or an error if the id is unknown.",
+      "arguments": [
+        {
+          "name": "entity_id",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Id of the entity to explain (e.g. 'n0').",
+          "enum": null
+        },
+        {
+          "name": "response_format",
+          "type": "object",
+          "required": false,
+          "default": "markdown",
+          "description": "Output format: 'markdown' or 'json'.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_explain_scores",
+      "summary": "Explain how an entity's intelligence-quality scores were derived.",
+      "description": "Explain how an entity's intelligence-quality scores were derived.\n\n    Returns the scores plus a deterministic, human-readable rationale (sources,\n    connectivity, type rarity, enriching properties).\n\n    Args:\n        params (ScoreEntityInput):\n            - entity_id (str): Entity id (e.g. 'n0').\n\n    Returns:\n        str: Markdown explanation with the scores and contributing factors.",
+      "arguments": [
+        {
+          "name": "entity_id",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Entity id to score (e.g. 'n0').",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_explain_transform",
+      "summary": "Explain one recorded transform execution by its execution id.",
+      "description": "Explain one recorded transform execution by its execution id.\n\n    Args:\n        params (ExplainTransformInput):\n            - transform_execution_id (str): e.g. 'x0' (see maltego_list_investigation_steps).\n            - response_format (ResponseFormat): 'markdown' (default) or 'json'.\n\n    Returns:\n        str: Full step detail, or an error if the execution id is unknown.",
+      "arguments": [
+        {
+          "name": "transform_execution_id",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Execution id of a recorded step (e.g. 'x0'). See maltego_list_investigation_steps.",
+          "enum": null
+        },
+        {
+          "name": "response_format",
+          "type": "object",
+          "required": false,
+          "default": "markdown",
+          "description": "Output format: 'markdown' or 'json'.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_explain_why",
+      "summary": "Explain why an entity is on the graph: which step/transform discovered it.",
+      "description": "Explain why an entity is on the graph: which step/transform discovered it.\n\n    Uses Investigation Memory to trace an entity's provenance — the transform\n    that produced it, the entity that triggered that transform, and the recorded\n    reason. Seed entities (added manually or via CSV) report as analyst-provided.\n\n    Args:\n        params (ExplainWhyInput):\n            - entity_id (str): Entity id (e.g. 'n3').\n            - response_format (ResponseFormat): 'markdown' (default) or 'json'.\n\n    Returns:\n        str: Provenance explanation, or an error if the id is unknown.",
+      "arguments": [
+        {
+          "name": "entity_id",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Entity id to explain the provenance of (e.g. 'n3').",
+          "enum": null
+        },
+        {
+          "name": "response_format",
+          "type": "object",
+          "required": false,
+          "default": "markdown",
+          "description": "Output format: 'markdown' or 'json'.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_export_csv",
+      "summary": "Export the active graph's entities to a CSV file (round-trips with import).",
+      "description": "Export the active graph's entities to a CSV file (round-trips with import).\n\n    Writes the same ``type,value,notes,link_to`` schema that maltego_import_csv\n    reads, so an exported CSV can be re-imported to reconstruct entities and their\n    relationships.\n\n    Args:\n        params (ExportPathInput):\n            - path (str): Destination CSV file path.\n\n    Returns:\n        str: Confirmation including the path and entity count.",
+      "arguments": [
+        {
+          "name": "path",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Destination file path for the export.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_export_json",
+      "summary": "Export the full active graph (entities, links, memory, scores) as JSON.",
+      "description": "Export the full active graph (entities, links, memory, scores) as JSON.\n\n    A complete, programmatic snapshot — a superset of the `.mtgx` sidecars —\n    useful for downstream tooling that doesn't read Maltego files.\n\n    Args:\n        params (ExportPathInput):\n            - path (str): Destination JSON file path.\n\n    Returns:\n        str: Confirmation including the path.",
+      "arguments": [
+        {
+          "name": "path",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Destination file path for the export.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_export_report",
+      "summary": "Write a deterministic investigation report for the active graph to a file.",
+      "description": "Write a deterministic investigation report for the active graph to a file.\n\n    Same content as maltego_generate_report, written to ``path``. Use a .md path\n    for markdown or .html for HTML.\n\n    Args:\n        params (ExportReportInput):\n            - path (str): Destination file path.\n            - format (ReportFormat): 'markdown' (default) or 'html'.\n\n    Returns:\n        str: Confirmation including the path written.",
+      "arguments": [
+        {
+          "name": "path",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Destination file path for the report.",
+          "enum": null
+        },
+        {
+          "name": "format",
+          "type": "object",
+          "required": false,
+          "default": "markdown",
+          "description": "Report format: 'markdown' or 'html'.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_generate_report",
+      "summary": "Generate a deterministic investigation report for the active graph.",
+      "description": "Generate a deterministic investigation report for the active graph.\n\n    The report includes an executive summary, key findings (pivots), an entity\n    inventory by type, relationship highlights, and suggested next steps. Returns\n    the report text inline (use maltego_export_report to write it to a file).\n\n    Args:\n        params (GenerateReportInput):\n            - format (ReportFormat): 'markdown' (default) or 'html'.\n\n    Returns:\n        str: The full report as Markdown or HTML text.",
+      "arguments": [
+        {
+          "name": "format",
+          "type": "object",
+          "required": false,
+          "default": "markdown",
+          "description": "Report format: 'markdown' or 'html'.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_get_entity",
+      "summary": "Fetch full details of one entity on the active graph by id.",
+      "description": "Fetch full details of one entity on the active graph by id.\n\n    Args:\n        params (GetEntityInput):\n            - entity_id (str): Entity id (e.g. 'n0').\n            - response_format (ResponseFormat): 'markdown' (default) or 'json'.\n\n    Returns:\n        str: Entity detail. JSON form is {id, type, value, properties, notes,\n        weight}; markdown form is a readable block. Error if the id is unknown.",
+      "arguments": [
+        {
+          "name": "entity_id",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Id of the entity to fetch (e.g. 'n0').",
+          "enum": null
+        },
+        {
+          "name": "response_format",
+          "type": "object",
+          "required": false,
+          "default": "markdown",
+          "description": "Output format: 'markdown' or 'json'.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_get_investigation_timeline",
+      "summary": "Return the chronological timeline of the active investigation.",
+      "description": "Return the chronological timeline of the active investigation.\n\n    A compact, ordered narrative of every transform execution recorded in\n    Investigation Memory — useful for review, audit, and explaining the path the\n    investigation took.\n\n    Returns:\n        str: Markdown timeline (one line per step in execution order).",
+      "arguments": []
+    },
+    {
+      "name": "maltego_get_recent_events",
+      "summary": "Return recent investigation events (entity_discovered, transform_*, etc.).",
+      "description": "Return recent investigation events (entity_discovered, transform_*, etc.).\n\n    Reads from the event bus's bounded buffer. Use ``since_seq`` to fetch only\n    events newer than a sequence number you've already seen (incremental polling).\n\n    Args:\n        params (GetEventsInput):\n            - limit (int): Max events (default 50).\n            - since_seq (Optional[int]): Only events with seq greater than this.\n            - response_format (ResponseFormat): 'json' (default) or 'markdown'.\n\n    Returns:\n        str: JSON form is {count, next_seq, events:[{seq,type,timestamp,data}]};\n        markdown is a readable list.",
+      "arguments": [
+        {
+          "name": "limit",
+          "type": "integer",
+          "required": false,
+          "default": 50,
+          "description": "Maximum recent events to return.",
+          "enum": null
+        },
+        {
+          "name": "since_seq",
+          "type": "integer / null",
+          "required": false,
+          "default": null,
+          "description": "Only return events with sequence number greater than this.",
+          "enum": null
+        },
+        {
+          "name": "response_format",
+          "type": "object",
+          "required": false,
+          "default": "json",
+          "description": "Output format: 'json' (default) or 'markdown'.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_identify_pivots",
+      "summary": "Identify the most promising pivot entities in the active graph.",
+      "description": "Identify the most promising pivot entities in the active graph.\n\n    Deterministically ranks entities that connect many others (degree >= 2),\n    which are typically the best points to pivot an investigation (shared IPs,\n    central emails, etc.).\n\n    Args:\n        params (AnalysisLimitInput):\n            - limit (int): Max pivots to return (1-50, default 10).\n            - response_format (ResponseFormat): 'markdown' (default) or 'json'.\n\n    Returns:\n        str: Ranked pivots with id, value, type, degree, and a reason.",
+      "arguments": [
+        {
+          "name": "limit",
+          "type": "integer",
+          "required": false,
+          "default": 10,
+          "description": "Maximum items to return.",
+          "enum": null
+        },
+        {
+          "name": "response_format",
+          "type": "object",
+          "required": false,
+          "default": "markdown",
+          "description": "Output format: 'markdown' or 'json'.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_import_csv",
+      "summary": "Build entities (and optional links) on the active graph from CSV.",
+      "description": "Build entities (and optional links) on the active graph from CSV.\n\n    Accepts a CSV file path or raw CSV text with a 'type,value' header (optional\n    'notes' and 'link_to' columns). The 'type' column accepts friendly aliases\n    ('Domain', 'Email', 'IP') or full Maltego type ids. Entities are deduplicated;\n    rows with unknown types are skipped and reported.\n\n    Args:\n        params (ImportCsvInput):\n            - path (Optional[str]): Path to a CSV file, OR\n            - content (Optional[str]): Raw CSV text.\n\n    Returns:\n        str: Counts of entities added/reused, links added, rows skipped, and any\n        per-row warnings.",
+      "arguments": [
+        {
+          "name": "path",
+          "type": "string / null",
+          "required": false,
+          "default": null,
+          "description": "Path to a CSV file with 'type,value' columns (optionally 'notes','link_to').",
+          "enum": null
+        },
+        {
+          "name": "content",
+          "type": "string / null",
+          "required": false,
+          "default": null,
+          "description": "Raw CSV text (alternative to 'path').",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_import_graph",
+      "summary": "Merge a .mtgx file's contents into the ACTIVE graph (combine investigations).",
+      "description": "Merge a .mtgx file's contents into the ACTIVE graph (combine investigations).\n\n    Unlike maltego_load_graph (which opens a separate graph), this merges another\n    graph's entities and links into the current active graph, remapping ids and\n    de-duplicating by (type, value) when ``dedupe`` is true.\n\n    Args:\n        params (ImportGraphInput):\n            - path (str): Path to the .mtgx file to merge in.\n            - dedupe (bool): Reuse matching entities instead of duplicating.\n\n    Returns:\n        str: Counts of entities/links added and reused, or an actionable error.",
+      "arguments": [
+        {
+          "name": "path",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Path to a .mtgx file whose entities/links are merged into the active graph.",
+          "enum": null
+        },
+        {
+          "name": "dedupe",
+          "type": "boolean",
+          "required": false,
+          "default": true,
+          "description": "Merge entities matching an existing (type, value) instead of duplicating them.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_investigate",
+      "summary": "One-call investigation: detect, build, expand, analyze, and recommend.",
+      "description": "One-call investigation: detect, build, expand, analyze, and recommend.\n\n    The primary high-level interface. Given any query (domain, email, IPv4/IPv6,\n    or URL) it: auto-detects the entity type, ensures an active graph, selects an\n    appropriate investigation machine, runs it (recording everything into\n    Investigation Memory), applies a layout, scores entities, and returns a\n    consolidated briefing with discoveries and ranked next actions.\n\n    Args:\n        params (InvestigateQueryInput):\n            - query (str): What to investigate (type auto-detected).\n            - allow_network (bool): Run network transforms (default True).\n            - max_rounds (Optional[int]): Override machine depth.\n            - layout (str): Layout to apply ('hierarchical'/'radial'/'force').\n\n    Returns:\n        str: A briefing: detected type, investigation stats, important\n        discoveries, recommended next actions, and report availability.",
+      "arguments": [
+        {
+          "name": "query",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Anything to investigate: a domain, email, IPv4/IPv6, or URL. The type is auto-detected.",
+          "enum": null
+        },
+        {
+          "name": "allow_network",
+          "type": "boolean",
+          "required": false,
+          "default": true,
+          "description": "Run network transforms (default True). Set false for offline/passive.",
+          "enum": null
+        },
+        {
+          "name": "max_rounds",
+          "type": "integer / null",
+          "required": false,
+          "default": null,
+          "description": "Override the chosen machine's expansion depth.",
+          "enum": null
+        },
+        {
+          "name": "layout",
+          "type": "string",
+          "required": false,
+          "default": "hierarchical",
+          "description": "Layout to apply after investigating: 'hierarchical', 'radial', or 'force'.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_investigate_domain",
+      "summary": "Automatically investigate a domain by adding it and running transforms.",
+      "description": "Automatically investigate a domain by adding it and running transforms.\n\n    A one-call workflow: ensures an active graph (creating one if needed), adds a\n    Domain entity, then expands the graph by running every applicable + available\n    transform (DNS, plus any configured OSINT providers) for a few rounds,\n    de-duplicating results. Use this instead of chaining transforms manually.\n\n    Args:\n        params (InvestigateInput):\n            - value (str): The domain to investigate (e.g. 'example.com').\n            - allow_network (bool): Run network transforms (default True).\n            - max_rounds (int): Expansion depth 1-4 (default 2).\n\n    Returns:\n        str: Summary of how many transforms ran and what was discovered, plus a\n        note of any transforms skipped for missing API keys.",
+      "arguments": [
+        {
+          "name": "value",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "The seed value to investigate (domain, email, or IP).",
+          "enum": null
+        },
+        {
+          "name": "allow_network",
+          "type": "boolean",
+          "required": false,
+          "default": true,
+          "description": "Run transforms that make network calls (DNS, OSINT APIs). Set false for an offline/passive parse-only run.",
+          "enum": null
+        },
+        {
+          "name": "max_rounds",
+          "type": "integer",
+          "required": false,
+          "default": 2,
+          "description": "How many expansion rounds to run (breadth-first). Higher = deeper, more tool calls.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_investigate_email",
+      "summary": "Automatically investigate an email address (domain, breaches, footprint).",
+      "description": "Automatically investigate an email address (domain, breaches, footprint).\n\n    Adds an Email Address entity and expands the graph: derives the domain,\n    checks breach exposure (if a HaveIBeenPwned key is configured), and expands\n    the related domain's basic footprint. See maltego_investigate_domain for the\n    shared behaviour and return shape.\n\n    Args:\n        params (InvestigateInput):\n            - value (str): The email to investigate (e.g. 'bob@example.com').\n            - allow_network (bool): Run network transforms (default True).\n            - max_rounds (int): Expansion depth 1-4 (default 2).\n\n    Returns:\n        str: Summary of what was discovered.",
+      "arguments": [
+        {
+          "name": "value",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "The seed value to investigate (domain, email, or IP).",
+          "enum": null
+        },
+        {
+          "name": "allow_network",
+          "type": "boolean",
+          "required": false,
+          "default": true,
+          "description": "Run transforms that make network calls (DNS, OSINT APIs). Set false for an offline/passive parse-only run.",
+          "enum": null
+        },
+        {
+          "name": "max_rounds",
+          "type": "integer",
+          "required": false,
+          "default": 2,
+          "description": "How many expansion rounds to run (breadth-first). Higher = deeper, more tool calls.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_investigate_ip",
+      "summary": "Automatically investigate an IPv4 address (reverse DNS, ports, services).",
+      "description": "Automatically investigate an IPv4 address (reverse DNS, ports, services).\n\n    Adds an IPv4 Address entity and expands the graph using reverse DNS plus any\n    configured host-intelligence providers (Shodan, Censys). See\n    maltego_investigate_domain for the shared behaviour and return shape.\n\n    Args:\n        params (InvestigateInput):\n            - value (str): The IPv4 address (e.g. '8.8.8.8').\n            - allow_network (bool): Run network transforms (default True).\n            - max_rounds (int): Expansion depth 1-4 (default 2).\n\n    Returns:\n        str: Summary of what was discovered.",
+      "arguments": [
+        {
+          "name": "value",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "The seed value to investigate (domain, email, or IP).",
+          "enum": null
+        },
+        {
+          "name": "allow_network",
+          "type": "boolean",
+          "required": false,
+          "default": true,
+          "description": "Run transforms that make network calls (DNS, OSINT APIs). Set false for an offline/passive parse-only run.",
+          "enum": null
+        },
+        {
+          "name": "max_rounds",
+          "type": "integer",
+          "required": false,
+          "default": 2,
+          "description": "How many expansion rounds to run (breadth-first). Higher = deeper, more tool calls.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_learning_stats",
+      "summary": "Show cross-investigation learning stats used by the Next Best Action engine.",
+      "description": "Show cross-investigation learning stats used by the Next Best Action engine.\n\n    Learning is opt-in: enable it by setting the env var MALTEGO_MCP_LEARNING=1\n    (or MALTEGO_MCP_LEARNING_PATH=/path/to/file.json). When enabled, the engine\n    records per-transform outcomes across investigations (runs, successes, average\n    yield) and lets that history nudge recommendations.\n\n    Returns:\n        str: JSON of per-transform stats, or a note if learning is disabled.",
+      "arguments": []
+    },
+    {
+      "name": "maltego_list_entities",
+      "summary": "List entities on the active graph, with optional filtering and pagination.",
+      "description": "List entities on the active graph, with optional filtering and pagination.\n\n    Args:\n        params (ListEntitiesInput):\n            - type_filter (Optional[str]): Restrict to a Maltego type.\n            - value_contains (Optional[str]): Case-insensitive substring filter.\n            - limit (int): Max results (1-500, default 50).\n            - offset (int): Results to skip (default 0).\n            - response_format (ResponseFormat): 'markdown' (default) or 'json'.\n\n    Returns:\n        str: In JSON form, an object:\n            {\n              \"total\": int,        # entities matching filters\n              \"count\": int,        # entities in this page\n              \"offset\": int,\n              \"has_more\": bool,\n              \"next_offset\": int | None,\n              \"entities\": [ {id, type, value, properties, notes, weight}, ... ]\n            }\n        In markdown form, a readable bullet list.",
+      "arguments": [
+        {
+          "name": "type_filter",
+          "type": "string / null",
+          "required": false,
+          "default": null,
+          "description": "Only return entities of this Maltego type (e.g. 'maltego.IPv4Address').",
+          "enum": null
+        },
+        {
+          "name": "value_contains",
+          "type": "string / null",
+          "required": false,
+          "default": null,
+          "description": "Only return entities whose value contains this substring (case-insensitive).",
+          "enum": null
+        },
+        {
+          "name": "limit",
+          "type": "integer",
+          "required": false,
+          "default": 50,
+          "description": "Maximum entities to return.",
+          "enum": null
+        },
+        {
+          "name": "offset",
+          "type": "integer",
+          "required": false,
+          "default": 0,
+          "description": "Number of entities to skip (pagination).",
+          "enum": null
+        },
+        {
+          "name": "response_format",
+          "type": "object",
+          "required": false,
+          "default": "markdown",
+          "description": "Output format: 'markdown' or 'json'.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_list_entity_types",
+      "summary": "List supported Maltego entity types from the built-in catalog.",
+      "description": "List supported Maltego entity types from the built-in catalog.\n\n    Use this to discover valid ``type`` ids for maltego_add_entity. The catalog\n    is a curated subset of Maltego's built-in types; custom types also work.\n\n    Args:\n        params (ListEntityTypesInput):\n            - category (Optional[str]): Filter to one category (e.g.\n              'infrastructure', 'personal', 'social', 'organization', 'location').\n\n    Returns:\n        str: Markdown grouped by category, listing each type id and its main\n        property.",
+      "arguments": [
+        {
+          "name": "category",
+          "type": "string / null",
+          "required": false,
+          "default": null,
+          "description": "Filter to one category (e.g. 'infrastructure', 'personal', 'social').",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_list_graphs",
+      "summary": "List all graphs currently open in the server and mark the active one.",
+      "description": "List all graphs currently open in the server and mark the active one.\n\n    Returns:\n        str: Markdown bullet list of open graphs with entity/link counts, or a\n        note if none are open.",
+      "arguments": []
+    },
+    {
+      "name": "maltego_list_investigation_steps",
+      "summary": "List recorded investigation steps (procedural memory) for the active graph.",
+      "description": "List recorded investigation steps (procedural memory) for the active graph.\n\n    Each step records a transform execution: what ran, why, the trigger entity,\n    what it discovered, status, and importance. This is the investigation's\n    reasoning trace, not just its data.\n\n    Args:\n        params (ListStepsInput):\n            - limit/offset (int): Pagination.\n            - status (Optional[str]): Filter by 'success', 'empty', or 'error'.\n            - response_format (ResponseFormat): 'markdown' (default) or 'json'.\n\n    Returns:\n        str: JSON form is {total, count, offset, steps:[...]}; markdown is a list.",
+      "arguments": [
+        {
+          "name": "limit",
+          "type": "integer",
+          "required": false,
+          "default": 50,
+          "description": "Maximum steps to return.",
+          "enum": null
+        },
+        {
+          "name": "offset",
+          "type": "integer",
+          "required": false,
+          "default": 0,
+          "description": "Steps to skip (pagination).",
+          "enum": null
+        },
+        {
+          "name": "status",
+          "type": "string / null",
+          "required": false,
+          "default": null,
+          "description": "Filter by status: 'success', 'empty', or 'error'.",
+          "enum": null
+        },
+        {
+          "name": "response_format",
+          "type": "object",
+          "required": false,
+          "default": "markdown",
+          "description": "Output format: 'markdown' or 'json'.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_list_links",
+      "summary": "List links (edges) on the active graph, with pagination.",
+      "description": "List links (edges) on the active graph, with pagination.\n\n    Args:\n        params (ListLinksInput):\n            - limit/offset (int): Pagination.\n            - response_format (ResponseFormat): 'markdown' (default) or 'json'.\n\n    Returns:\n        str: JSON form is {total, count, offset, links:[{id,source,target,label}]};\n        markdown shows source → target with labels and entity values.",
+      "arguments": [
+        {
+          "name": "limit",
+          "type": "integer",
+          "required": false,
+          "default": 50,
+          "description": "Maximum links to return.",
+          "enum": null
+        },
+        {
+          "name": "offset",
+          "type": "integer",
+          "required": false,
+          "default": 0,
+          "description": "Links to skip (pagination).",
+          "enum": null
+        },
+        {
+          "name": "response_format",
+          "type": "object",
+          "required": false,
+          "default": "markdown",
+          "description": "Output format: 'markdown' or 'json'.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_list_machines",
+      "summary": "List available investigation machines (reusable workflow templates).",
+      "description": "List available investigation machines (reusable workflow templates).\n\n    Machines run a curated set of transforms over several rounds (e.g. 'Passive\n    Domain Investigation'). Run one with maltego_run_machine.\n\n    Returns:\n        str: Markdown list of machines with their seed type and description.",
+      "arguments": []
+    },
+    {
+      "name": "maltego_list_providers",
+      "summary": "List OSINT transform providers and whether each is configured.",
+      "description": "List OSINT transform providers and whether each is configured.\n\n    Shows the built-in 'local' provider plus external providers (VirusTotal,\n    Shodan, SecurityTrails, Censys, Hunter.io, HaveIBeenPwned), the environment\n    variable(s) each needs, and whether those are currently set.\n\n    Returns:\n        str: Markdown list grouped by tier with configuration status and the\n        env vars required to enable each provider.",
+      "arguments": []
+    },
+    {
+      "name": "maltego_list_transforms",
+      "summary": "List available transforms, optionally filtered by accepted input type.",
+      "description": "List available transforms, optionally filtered by accepted input type.\n\n    Transforms expand an entity into related entities (e.g. a domain into its IP\n    addresses). The built-in 'local' provider needs no API keys; more providers\n    (a Maltego API, OSINT services) can be added without changing these tools.\n\n    Args:\n        params (ListTransformsInput):\n            - input_type (Optional[str]): Only transforms accepting this type.\n\n    Returns:\n        str: Markdown list of transforms with name, accepted input types, output\n        types, provider, and whether they require network access.",
+      "arguments": [
+        {
+          "name": "input_type",
+          "type": "string / null",
+          "required": false,
+          "default": null,
+          "description": "Only list transforms that accept this Maltego entity type as input.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_load_graph",
+      "summary": "Load an existing .mtgx file as a new active graph (continue an investigation).",
+      "description": "Load an existing .mtgx file as a new active graph (continue an investigation).\n\n    Equivalent to maltego_open_graph: parses all entities, links, properties, and\n    any stored layout positions so you can continue editing and re-save (full\n    round-trip).\n\n    Args:\n        params (LoadGraphInput):\n            - path (str): Path to the .mtgx file.\n\n    Returns:\n        str: Summary of the loaded graph, or an actionable error.",
+      "arguments": [
+        {
+          "name": "path",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Path to an existing .mtgx file to load.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_next_best_actions",
+      "summary": "Recommend the most valuable next investigative moves (decision engine).",
+      "description": "Recommend the most valuable next investigative moves (decision engine).\n\n    A deterministic, explainable ranking that weighs entity importance, expected\n    information gain, confidence, provider availability, and — crucially — the\n    Investigation Memory (so it never re-suggests a transform already attempted\n    on an entity). Supersedes maltego_suggest_next_steps with richer reasoning.\n\n    Args:\n        params (AnalysisLimitInput):\n            - limit (int): Max recommendations (1-50, default 10).\n            - response_format (ResponseFormat): 'markdown' (default) or 'json'.\n\n    Returns:\n        str: Ranked recommendations, each with transform, target entity, a\n        deterministic score, expected gain, and a plain-English reason.",
+      "arguments": [
+        {
+          "name": "limit",
+          "type": "integer",
+          "required": false,
+          "default": 10,
+          "description": "Maximum items to return.",
+          "enum": null
+        },
+        {
+          "name": "response_format",
+          "type": "object",
+          "required": false,
+          "default": "markdown",
+          "description": "Output format: 'markdown' or 'json'.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_open_graph",
+      "summary": "Open an existing Maltego ``.mtgx`` file into memory and make it active.",
+      "description": "Open an existing Maltego ``.mtgx`` file into memory and make it active.\n\n    Parses the GraphML inside the archive into entities and links so they can be\n    inspected and edited. The graph remembers its source path so maltego_save_graph\n    can re-save in place.\n\n    Args:\n        params (OpenGraphInput):\n            - path (str): Path to an existing .mtgx file.\n\n    Returns:\n        str: Summary of the loaded graph (entity/link counts) or an error.",
+      "arguments": [
+        {
+          "name": "path",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Absolute or relative path to an existing .mtgx file.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_rank_entities",
+      "summary": "Rank entities by investigation priority (deterministic).",
+      "description": "Rank entities by investigation priority (deterministic).\n\n    Scores every entity and returns them ordered by investigation_priority, so an\n    analyst can focus on the most meaningful findings first.\n\n    Args:\n        params (RankEntitiesInput):\n            - limit (int): Max entities (1-200, default 20).\n            - response_format (ResponseFormat): 'markdown' (default) or 'json'.\n\n    Returns:\n        str: Ranked entities with their scores.",
+      "arguments": [
+        {
+          "name": "limit",
+          "type": "integer",
+          "required": false,
+          "default": 20,
+          "description": "Maximum entities to return.",
+          "enum": null
+        },
+        {
+          "name": "response_format",
+          "type": "object",
+          "required": false,
+          "default": "markdown",
+          "description": "Output format: 'markdown' or 'json'.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_rename_graph",
+      "summary": "Rename an open graph (defaults to the active graph).",
+      "description": "Rename an open graph (defaults to the active graph).\n\n    Args:\n        params (RenameGraphInput):\n            - new_name (str): New name.\n            - graph_name (Optional[str]): Graph to rename; defaults to active.\n\n    Returns:\n        str: Confirmation, or an actionable error (unknown/duplicate name).",
+      "arguments": [
+        {
+          "name": "new_name",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "New name for the graph.",
+          "enum": null
+        },
+        {
+          "name": "graph_name",
+          "type": "string / null",
+          "required": false,
+          "default": null,
+          "description": "Graph to rename. Defaults to the active graph.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_reset_learning",
+      "summary": "Clear the cross-investigation learning store (in-memory and on disk).",
+      "description": "Clear the cross-investigation learning store (in-memory and on disk).\n\n    No-op when learning is disabled.\n\n    Returns:\n        str: Confirmation.",
+      "arguments": []
+    },
+    {
+      "name": "maltego_run_machine",
+      "summary": "Run an investigation machine against a seed value on the active graph.",
+      "description": "Run an investigation machine against a seed value on the active graph.\n\n    Ensures an active graph (creating one if needed), seeds the machine's entity\n    type with ``seed_value``, and expands the graph per the machine's recipe.\n    Missing/unavailable transforms are skipped gracefully.\n\n    Args:\n        params (RunMachineInput):\n            - machine_name (str): e.g. 'passive_domain' (see maltego_list_machines).\n            - seed_value (str): Seed value (domain/email/ip).\n            - allow_network (Optional[bool]): Override the machine's network setting.\n            - max_rounds (Optional[int]): Override expansion depth.\n\n    Returns:\n        str: Summary of what the machine discovered, or an actionable error.",
+      "arguments": [
+        {
+          "name": "machine_name",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Machine to run, e.g. 'passive_domain'. Use maltego_list_machines.",
+          "enum": null
+        },
+        {
+          "name": "seed_value",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Seed value for the machine (e.g. the domain or email to investigate).",
+          "enum": null
+        },
+        {
+          "name": "allow_network",
+          "type": "boolean / null",
+          "required": false,
+          "default": null,
+          "description": "Override the machine's network setting (default: use the machine's own).",
+          "enum": null
+        },
+        {
+          "name": "max_rounds",
+          "type": "integer / null",
+          "required": false,
+          "default": null,
+          "description": "Override the machine's expansion depth.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_run_transform",
+      "summary": "Run a transform on an entity in the active graph to discover related entities.",
+      "description": "Run a transform on an entity in the active graph to discover related entities.\n\n    Looks up the named transform, runs it against the given input entity, and\n    (by default) adds the resulting entities to the active graph with links back\n    to the input entity. Results are de-duplicated against existing entities.\n\n    Args:\n        params (RunTransformInput):\n            - transform_name (str): Transform to run (see maltego_list_transforms).\n            - entity_id (str): Input entity id in the active graph.\n            - add_to_graph (bool): Add results to the graph (default True).\n\n    Returns:\n        str: Summary of discovered entities (and the ids created when added), or\n        an actionable error (unknown transform, type mismatch, no results).",
+      "arguments": [
+        {
+          "name": "transform_name",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Name of the transform to run, e.g. 'dns.domain_to_ip'. Use maltego_list_transforms to discover.",
+          "enum": null
+        },
+        {
+          "name": "entity_id",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Id of the input entity in the active graph to run the transform on.",
+          "enum": null
+        },
+        {
+          "name": "add_to_graph",
+          "type": "boolean",
+          "required": false,
+          "default": true,
+          "description": "If true (default), add resulting entities and links to the active graph.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_save_graph",
+      "summary": "Save a graph to a Maltego ``.mtgx`` file that opens in Maltego CE.",
+      "description": "Save a graph to a Maltego ``.mtgx`` file that opens in Maltego CE.\n\n    Writes the active graph (or the named graph) as a .mtgx archive. If no path\n    is supplied, re-saves to the path the graph was opened from. Open the\n    resulting file in Maltego CE via File > Open, or refresh it if already open.\n\n    Args:\n        params (SaveGraphInput):\n            - path (Optional[str]): Destination .mtgx path. Defaults to the\n              graph's original source path.\n            - graph_name (Optional[str]): Graph to save; defaults to active graph.\n\n    Returns:\n        str: The absolute path written, or an actionable error.",
+      "arguments": [
+        {
+          "name": "path",
+          "type": "string / null",
+          "required": false,
+          "default": null,
+          "description": "Destination .mtgx path. If omitted, re-saves to the path the graph was opened from.",
+          "enum": null
+        },
+        {
+          "name": "graph_name",
+          "type": "string / null",
+          "required": false,
+          "default": null,
+          "description": "Name of the graph to save. Defaults to the active graph.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_score_entity",
+      "summary": "Compute intelligence-quality scores for one entity (deterministic).",
+      "description": "Compute intelligence-quality scores for one entity (deterministic).\n\n    Returns confidence, source_reliability, linkage_strength,\n    investigation_priority, and novelty in [0, 1], derived from the graph\n    structure and Investigation Memory (which providers found the entity).\n\n    Args:\n        params (ScoreEntityInput):\n            - entity_id (str): Entity id (e.g. 'n0').\n\n    Returns:\n        str: JSON object {entity, scores:{confidence, source_reliability,\n        linkage_strength, investigation_priority, novelty}}.",
+      "arguments": [
+        {
+          "name": "entity_id",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Entity id to score (e.g. 'n0').",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_set_active_graph",
+      "summary": "Make a previously-opened graph the active target for entity/link operations.",
+      "description": "Make a previously-opened graph the active target for entity/link operations.\n\n    Args:\n        params (SetActiveGraphInput):\n            - name (str): Name of an open graph (see maltego_list_graphs).\n\n    Returns:\n        str: Confirmation or an actionable error.",
+      "arguments": [
+        {
+          "name": "name",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Name of an already-open graph to make active.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_subscribe_events",
+      "summary": "Enable real-time investigation mode and return a subscription id.",
+      "description": "Enable real-time investigation mode and return a subscription id.\n\n    Turns on the event bus's live mode and buffering. Because MCP stdio cannot\n    push to the caller, retrieve emitted events by polling maltego_get_recent_events\n    (events are also buffered before subscribing). Real-time mode is optional and\n    does not change any .mtgx behaviour.\n\n    Returns:\n        str: The subscription id and current buffer/sequence state.",
+      "arguments": []
+    },
+    {
+      "name": "maltego_suggest_next_steps",
+      "summary": "Suggest concrete next transforms to run on the active graph.",
+      "description": "Suggest concrete next transforms to run on the active graph.\n\n    Deterministically recommends transforms to advance the investigation,\n    prioritising the most-connected entities and available transforms first.\n    Unavailable (missing-key) transforms are still listed but flagged.\n\n    Args:\n        params (AnalysisLimitInput):\n            - limit (int): Max suggestions (1-50, default 10).\n            - response_format (ResponseFormat): 'markdown' (default) or 'json'.\n\n    Returns:\n        str: Suggestions of (transform, target entity, expected output types).",
+      "arguments": [
+        {
+          "name": "limit",
+          "type": "integer",
+          "required": false,
+          "default": 10,
+          "description": "Maximum items to return.",
+          "enum": null
+        },
+        {
+          "name": "response_format",
+          "type": "object",
+          "required": false,
+          "default": "markdown",
+          "description": "Output format: 'markdown' or 'json'.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_summarize_graph",
+      "summary": "Summarize the active investigation graph (composition + key entities).",
+      "description": "Summarize the active investigation graph (composition + key entities).\n\n    Deterministic overview: entity/link totals, a breakdown by entity type, the\n    most-connected entities, and any isolated entities. Ideal for presenting an\n    investigation's state to a user.\n\n    Args:\n        params (SummarizeGraphInput):\n            - response_format (ResponseFormat): 'markdown' (default) or 'json'.\n\n    Returns:\n        str: JSON form matches analysis.summarize_graph (name, entity_count,\n        link_count, type_breakdown, most_connected, isolated_count, isolated);\n        markdown form is a readable brief.",
+      "arguments": [
+        {
+          "name": "response_format",
+          "type": "object",
+          "required": false,
+          "default": "markdown",
+          "description": "Output format: 'markdown' or 'json'.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_update_entity",
+      "summary": "Update an entity's value, properties, notes, or weight on the active graph.",
+      "description": "Update an entity's value, properties, notes, or weight on the active graph.\n\n    Only the supplied fields change; properties are merged (not replaced).\n\n    Args:\n        params (UpdateEntityInput):\n            - entity_id (str): Entity to update.\n            - value (Optional[str]): New primary value.\n            - properties (Optional[Dict[str,str]]): Properties to set/merge.\n            - notes (Optional[str]): Replacement notes.\n            - weight (Optional[int]): Node weight (0-100).\n\n    Returns:\n        str: Confirmation or an actionable error.",
+      "arguments": [
+        {
+          "name": "entity_id",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Id of the entity to update.",
+          "enum": null
+        },
+        {
+          "name": "value",
+          "type": "string / null",
+          "required": false,
+          "default": null,
+          "description": "New primary value.",
+          "enum": null
+        },
+        {
+          "name": "properties",
+          "type": "object / null",
+          "required": false,
+          "default": null,
+          "description": "Properties to set/merge (name->value).",
+          "enum": null
+        },
+        {
+          "name": "notes",
+          "type": "string / null",
+          "required": false,
+          "default": null,
+          "description": "Replacement notes text.",
+          "enum": null
+        },
+        {
+          "name": "weight",
+          "type": "integer / null",
+          "required": false,
+          "default": null,
+          "description": "Node weight / relevance.",
+          "enum": null
+        }
+      ]
+    }
+  ]
+}
