@@ -1,5 +1,5 @@
 {
-  "tool_count": 50,
+  "tool_count": 52,
   "tools": [
     {
       "name": "maltego_add_entity",
@@ -155,6 +155,37 @@
       ]
     },
     {
+      "name": "maltego_expand_entity",
+      "summary": "Run ALL applicable, available transforms on ONE entity to pivot from it.",
+      "description": "Run ALL applicable, available transforms on ONE entity to pivot from it.\n\n    Use when: you want to dig into a specific node (e.g. a pivot from\n    maltego_identify_pivots) rather than re-running a whole investigation.\n    Records Investigation Memory and links results back to the entity.\n\n    Args:\n        params (ExpandEntityInput):\n            - entity_id (str): Entity to expand (e.g. 'n0').\n            - allow_network (bool): Run network transforms (default True).\n            - max_rounds (int): Expansion rounds from this entity (1-4, default 1).\n\n    Returns:\n        str: Summary of what the expansion discovered.",
+      "arguments": [
+        {
+          "name": "entity_id",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Id of the entity to expand (e.g. 'n0').",
+          "enum": null
+        },
+        {
+          "name": "allow_network",
+          "type": "boolean",
+          "required": false,
+          "default": true,
+          "description": "Run network transforms (default True).",
+          "enum": null
+        },
+        {
+          "name": "max_rounds",
+          "type": "integer",
+          "required": false,
+          "default": 1,
+          "description": "Expansion rounds from this entity.",
+          "enum": null
+        }
+      ]
+    },
+    {
       "name": "maltego_explain_entity",
       "summary": "Explain one entity: its data, neighbours, and how it can be expanded.",
       "description": "Explain one entity: its data, neighbours, and how it can be expanded.\n\n    Deterministic context for a single node: properties, notes, degree, incoming\n    and outgoing neighbours (with link labels), and which transforms apply to it\n    (and whether each is currently available).\n\n    Args:\n        params (ExplainEntityInput):\n            - entity_id (str): Entity id (e.g. 'n0').\n            - response_format (ResponseFormat): 'markdown' (default) or 'json'.\n\n    Returns:\n        str: Detailed explanation, or an error if the id is unknown.",
@@ -287,6 +318,29 @@
           "required": false,
           "default": "markdown",
           "description": "Report format: 'markdown' or 'html'.",
+          "enum": null
+        }
+      ]
+    },
+    {
+      "name": "maltego_find_path",
+      "summary": "Find the shortest relationship path between two entities (undirected BFS).",
+      "description": "Find the shortest relationship path between two entities (undirected BFS).\n\n    Use when: you want to know how two findings are connected (e.g. does this\n    email relate to that IP, and through what?).\n\n    Args:\n        params (FindPathInput):\n            - source_id (str): Start entity id.\n            - target_id (str): End entity id.\n\n    Returns:\n        str: The shortest path as a chain of entities (with link labels), or a\n        note if no path exists.",
+      "arguments": [
+        {
+          "name": "source_id",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "Start entity id (e.g. 'n0').",
+          "enum": null
+        },
+        {
+          "name": "target_id",
+          "type": "string",
+          "required": true,
+          "default": null,
+          "description": "End entity id (e.g. 'n5').",
           "enum": null
         }
       ]
@@ -444,7 +498,7 @@
     {
       "name": "maltego_investigate",
       "summary": "PRIMARY entry point — run a COMPLETE investigation in one call.",
-      "description": "PRIMARY entry point — run a COMPLETE investigation in one call.\n\n    Use when the user wants to investigate anything (domain, email, IPv4/IPv6, or\n    URL, or a bare value). This is the default for \"investigate X\". It\n    auto-detects the type, builds/expands the graph via the right machine\n    (recording Investigation Memory), lays it out, summarizes, scores/ranks\n    entities, computes next-best-actions, and includes an inline report — and\n    returns ONE finished briefing. Present it directly; do not call summarize/\n    list/suggest afterwards. Next: offer to maltego_save_graph or\n    maltego_export_report (do not write files unless asked).\n\n    Args:\n        params (InvestigateQueryInput):\n            - query (str): What to investigate (type auto-detected).\n            - allow_network (bool): Run network transforms (default True).\n            - max_rounds (Optional[int]): Override machine expansion depth.\n            - layout (str): 'hierarchical' | 'radial' | 'force'.\n            - include_report (bool): Append the full inline report (default True).\n            - include_next_actions (bool): Include NBA recommendations (default True).\n\n    Returns:\n        str: One complete briefing — detection + run stats, important discoveries,\n        recommended next actions, and (by default) a full inline report. No files\n        are written.",
+      "description": "PRIMARY entry point — run a COMPLETE investigation in one call.\n\n    Use when the user wants to investigate anything (domain, email, IPv4/IPv6, or\n    URL, or a bare value). This is the default for \"investigate X\". It\n    auto-detects the type, builds/expands the graph via the right machine\n    (recording Investigation Memory), lays it out, summarizes, scores/ranks\n    entities, computes next-best-actions, and includes an inline report — and\n    returns ONE finished briefing. Present it directly; do not call summarize/\n    list/suggest afterwards. Next: offer to maltego_save_graph or\n    maltego_export_report (do not write files unless asked).\n\n    Args:\n        params (InvestigateQueryInput):\n            - query (str): What to investigate (type auto-detected).\n            - allow_network (bool): Run network transforms (default True).\n            - depth (str): 'quick' | 'standard' (default) | 'deep'. 'deep' runs ALL\n              applicable available transforms over more rounds (thorough, slower);\n              use it when the user asks to \"go deep\"/\"dig further\".\n            - max_rounds (Optional[int]): Explicit rounds override (else set by depth).\n            - layout (str): 'hierarchical' | 'radial' | 'force'.\n            - include_report (bool): Append the full inline report (default True).\n            - include_next_actions (bool): Include NBA recommendations (default True).\n\n    Returns:\n        str: One complete briefing — detection + run stats, important discoveries,\n        recommended next actions, and (by default) a full inline report. No files\n        are written.",
       "arguments": [
         {
           "name": "query",
@@ -463,11 +517,19 @@
           "enum": null
         },
         {
+          "name": "depth",
+          "type": "string",
+          "required": false,
+          "default": "standard",
+          "description": "Investigation depth: 'quick' (1 round, fast), 'standard' (the machine's curated transforms), or 'deep' (runs ALL applicable available transforms over more rounds — recursive, thorough, slower).",
+          "enum": null
+        },
+        {
           "name": "max_rounds",
           "type": "integer / null",
           "required": false,
           "default": null,
-          "description": "Override the chosen machine's expansion depth.",
+          "description": "Explicitly override expansion rounds (otherwise set by 'depth').",
           "enum": null
         },
         {

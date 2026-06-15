@@ -18,6 +18,7 @@ handled gracefully with actionable messages.
 from __future__ import annotations
 
 # Importing each module registers its provider + transforms as a side effect.
+from maltego_mcp.transforms.osint import keyless  # noqa: F401  (no API key)
 from maltego_mcp.transforms.osint import virustotal  # noqa: F401
 from maltego_mcp.transforms.osint import shodan  # noqa: F401
 from maltego_mcp.transforms.osint import securitytrails  # noqa: F401

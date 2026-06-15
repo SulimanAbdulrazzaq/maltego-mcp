@@ -20,6 +20,7 @@ or provider-specific investigations:
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set, Tuple
 
@@ -79,24 +80,12 @@ def _eligible_transforms(
     return sorted(result, key=lambda x: x.name)
 
 
-async def run_and_record(
-    graph: Graph,
-    transform: Transform,
-    entity: Entity,
-    reason: str,
-    *,
-    add_to_graph: bool = True,
-    emit_events: bool = True,
-) -> Tuple[List[Entity], InvestigationStep]:
-    """Run one transform on one entity, applying results and recording memory.
+async def _execute(transform: Transform, entity: Entity, *, emit_events: bool = True):
+    """Run one transform's network call WITHOUT mutating the graph.
 
-    This is the single choke-point used by both the orchestration engine and the
-    manual ``maltego_run_transform`` tool, so procedural memory and real-time
-    events are captured consistently everywhere.
-
-    Returns ``(added_entities, step)`` where ``added_entities`` are the entities
-    newly created on the graph (empty if ``add_to_graph`` is False or nothing new
-    was found) and ``step`` is the recorded :class:`InvestigationStep`.
+    Returns ``(result, error)`` — exactly one is non-None. Kept side-effect-free
+    (besides the started event) so many executions can be gathered concurrently
+    and their results applied later in a deterministic order.
     """
 
     if emit_events:
@@ -104,11 +93,32 @@ async def run_and_record(
             TRANSFORM_STARTED,
             {"transform": transform.name, "entity_id": entity.id, "entity_value": entity.value},
         )
-
-    # Execute the transform, capturing any failure as an error step.
     try:
         result = await transform.run(entity.value, dict(entity.properties))
+        return result, None
     except Exception as exc:  # noqa: BLE001 - one transform must never abort a run
+        return None, exc
+
+
+def _apply(
+    graph: Graph,
+    transform: Transform,
+    entity: Entity,
+    reason: str,
+    result,
+    error,
+    *,
+    add_to_graph: bool = True,
+    emit_events: bool = True,
+) -> Tuple[List[Entity], InvestigationStep]:
+    """Apply an executed transform's result to the graph and record memory.
+
+    Pure synchronous (no ``await``) so callers can apply gathered results one by
+    one in a fixed order — guaranteeing deterministic entity ids regardless of
+    network completion order.
+    """
+
+    if error is not None:
         step = graph.memory.record(
             trigger_entity_id=entity.id,
             trigger_entity_value=entity.value,
@@ -119,8 +129,9 @@ async def run_and_record(
             importance_score=0.0,
             status=STATUS_ERROR,
             reconsider=True,
-            message=str(exc),
+            message=str(error),
         )
+        learning.store.record(transform.name, STATUS_ERROR, 0)
         if emit_events:
             bus.emit(
                 TRANSFORM_COMPLETED,
@@ -152,7 +163,6 @@ async def run_and_record(
                         },
                     )
 
-    # Importance from yield + output breadth + novelty of discoveries.
     novelty = 0.0
     for e in added:
         s = scoring.score_entity(graph, e.id)
@@ -167,8 +177,7 @@ async def run_and_record(
         status = STATUS_EMPTY
     reconsider = status == STATUS_EMPTY
 
-    # Cross-investigation learning (opt-in; no-op when disabled).
-    learning.store.record(transform.name, status, len(added))
+    learning.store.record(transform.name, status, len(added))  # opt-in; no-op when off
 
     step = graph.memory.record(
         trigger_entity_id=entity.id,
@@ -193,6 +202,29 @@ async def run_and_record(
             },
         )
     return added, step
+
+
+async def run_and_record(
+    graph: Graph,
+    transform: Transform,
+    entity: Entity,
+    reason: str,
+    *,
+    add_to_graph: bool = True,
+    emit_events: bool = True,
+) -> Tuple[List[Entity], InvestigationStep]:
+    """Run one transform on one entity, apply results, and record memory.
+
+    The single choke-point for the manual ``maltego_run_transform`` tool. Returns
+    ``(added_entities, step)``. (The orchestration engine uses the lower-level
+    :func:`_execute`/:func:`_apply` split so it can run a round concurrently.)
+    """
+
+    result, error = await _execute(transform, entity, emit_events=emit_events)
+    return _apply(
+        graph, transform, entity, reason, result, error,
+        add_to_graph=add_to_graph, emit_events=emit_events,
+    )
 
 
 async def expand(
@@ -230,7 +262,10 @@ async def expand(
         # Snapshot current entities so results added this round are processed
         # in the next round (true breadth-first expansion).
         current = list(graph.entities)
-        progressed = False
+
+        # Build this round's (entity, transform, reason) work list in a fully
+        # deterministic order (entities in graph order, transforms sorted).
+        work = []
         for entity in current:
             note_unavailable(entity.type_id)
             for transform in _eligible_transforms(
@@ -244,17 +279,30 @@ async def expand(
                     f"Round {round_no + 1}: '{transform.name}' is applicable to "
                     f"{entity.type_id} entity '{entity.value}'."
                 )
-                links_before = graph.link_count()
-                added, step = await run_and_record(graph, transform, entity, reason)
-                report.transforms_run += 1
-                if step.message:
-                    report.messages.append(f"{transform.name}: {step.message}")
-                # Count links from the real graph delta (dedupe-aware), and
-                # entities from what was actually newly created.
-                report.links_added += graph.link_count() - links_before
-                if added:
-                    report.entities_added += len(added)
-                    progressed = True
+                work.append((entity, transform, reason))
+
+        if not work:
+            report.rounds = round_no + 1
+            break
+
+        # Execute all network calls CONCURRENTLY (asyncio.gather preserves input
+        # order in its results), then APPLY them sequentially in that fixed order
+        # — fast (parallel I/O) and deterministic (stable entity ids).
+        executions = await asyncio.gather(
+            *[_execute(t, e) for (e, t, _r) in work]
+        )
+
+        progressed = False
+        for (entity, transform, reason), (result, error) in zip(work, executions):
+            links_before = graph.link_count()
+            added, step = _apply(graph, transform, entity, reason, result, error)
+            report.transforms_run += 1
+            if step.message:
+                report.messages.append(f"{transform.name}: {step.message}")
+            report.links_added += graph.link_count() - links_before
+            if added:
+                report.entities_added += len(added)
+                progressed = True
         report.rounds = round_no + 1
         if not progressed:
             break

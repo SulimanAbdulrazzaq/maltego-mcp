@@ -8,8 +8,8 @@
 ![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-plugin-7c3aed)
 ![Python](https://img.shields.io/badge/python-3.10%2B-green)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
-![Tools](https://img.shields.io/badge/tools-50-orange)
-![Tests](https://img.shields.io/badge/tests-70%20passing-brightgreen)
+![Tools](https://img.shields.io/badge/tools-52-orange)
+![Tests](https://img.shields.io/badge/tests-80%20passing-brightgreen)
 
 An [MCP](https://modelcontextprotocol.io) server that turns an LLM into a
 **Maltego CE investigation copilot** — an AI-assisted OSINT platform built on
@@ -164,7 +164,7 @@ npx @modelcontextprotocol/inspector maltego-mcp
 
 ## Tools
 
-**50 tools.** The tables below group them by area. For the **complete reference with every
+**52 tools.** The tables below group them by area. For the **complete reference with every
 argument, type, and default**, see [`TOOLS.md`](TOOLS.md) (auto-generated from the live tool
 schemas — the file an AI agent should read to learn the exact interface).
 
@@ -206,7 +206,9 @@ schemas — the file an AI agent should read to learn the exact interface).
 ### Unified entry point (primary interface for agents)
 | Tool | Description |
 |------|-------------|
-| `maltego_investigate` | **One call does it all**: detect type → build/expand graph → layout → summarize → rank → next-best-actions → **inline report**, returned as one finished briefing. No follow-up calls or file writes needed. |
+| `maltego_investigate` | **One call does it all**: detect type → build/expand graph → layout → summarize → rank → next-best-actions → **inline report**, returned as one finished briefing. Supports **`depth`**: `quick` / `standard` / `deep` (deep runs *all* applicable transforms over more rounds). No follow-up calls or file writes needed. |
+| `maltego_expand_entity` | Run all applicable transforms on **one** entity (pivot from a specific node). |
+| `maltego_find_path` | Shortest relationship path between two entities. |
 | `maltego_guide` | Returns the server's usage guidance (workflow + tool map) on demand. |
 
 The AI is told *how* to use these tools via the server's **MCP instructions** (auto-injected
@@ -270,13 +272,14 @@ server records per-transform outcomes across investigations and lets that histor
 
 ### Transforms by provider
 
-Built-in `local` provider — **no API key required**:
+**No API key required** — work out of the box:
 
 - `dns.domain_to_ip` — domain/DNS name → IPv4 addresses (DNS A record) *[network]*
 - `dns.ip_to_host` — IPv4 address → hostname (reverse DNS / PTR) *[network]*
-- `parse.url_to_domain` — URL → domain *(offline)*
-- `parse.email_to_domain` — email → domain *(offline)*
-- `parse.domain_to_website` — domain → Website entity *(offline)*
+- `parse.url_to_domain` / `parse.email_to_domain` / `parse.domain_to_website` *(offline)*
+- `crtsh.domain_to_subdomains` — **subdomains from Certificate Transparency (crt.sh)** *[network]*
+- `rdap.domain_info` — **registrar, dates, nameservers, contacts (RDAP/WHOIS)** *[network]*
+- `rdap.ip_info` — **netblock + owning org/ASN for an IP (RDAP)** *[network]*
 
 External OSINT providers — **activate when their env-var key is set** (see
 `maltego_list_providers`). Transforms are always *listed* but only *run* when
@@ -380,7 +383,7 @@ register_machine(Machine(
 
 ```
 src/maltego_mcp/
-├── server.py          # FastMCP server (with MCP instructions) + 50 tools + prompts
+├── server.py          # FastMCP server (with MCP instructions) + 52 tools + prompts
 ├── models.py          # Pydantic input models
 ├── entities.py        # Maltego entity-type catalog
 ├── formatting.py      # markdown/JSON response helpers + error mapping
@@ -403,8 +406,9 @@ src/maltego_mcp/
 └── transforms/
     ├── base.py        # Transform/registry + ProviderInfo/ProviderRegistry (+ reliability)
     ├── local.py       # built-in no-auth transforms
-    └── osint/         # external providers (VT, Shodan, SecurityTrails, ...)
+    └── osint/         # providers
         ├── base_http.py
+        ├── keyless.py    # NO-key: crt.sh (cert transparency), RDAP (domain + IP)
         └── virustotal.py, shodan.py, securitytrails.py, censys.py, hunterio.py, hibp.py
 ```
 

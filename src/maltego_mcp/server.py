@@ -43,6 +43,8 @@ from maltego_mcp.models import (
     DeleteEntityInput,
     DeleteGraphInput,
     DeleteLinkInput,
+    ExpandEntityInput,
+    FindPathInput,
     ExplainEntityInput,
     ExplainTransformInput,
     ExplainWhyInput,
@@ -1707,7 +1709,10 @@ async def maltego_investigate(params: InvestigateQueryInput) -> str:
         params (InvestigateQueryInput):
             - query (str): What to investigate (type auto-detected).
             - allow_network (bool): Run network transforms (default True).
-            - max_rounds (Optional[int]): Override machine expansion depth.
+            - depth (str): 'quick' | 'standard' (default) | 'deep'. 'deep' runs ALL
+              applicable available transforms over more rounds (thorough, slower);
+              use it when the user asks to "go deep"/"dig further".
+            - max_rounds (Optional[int]): Explicit rounds override (else set by depth).
             - layout (str): 'hierarchical' | 'radial' | 'force'.
             - include_report (bool): Append the full inline report (default True).
             - include_next_actions (bool): Include NBA recommendations (default True).
@@ -1720,20 +1725,40 @@ async def maltego_investigate(params: InvestigateQueryInput) -> str:
     try:
         det = detect(params.query)
         graph = _active_or_create(f"investigate-{det.value}")
+        seed = graph.add_entity(det.type_id, det.value, dedupe=True)
 
-        if det.machine:
+        # 'depth' chooses breadth + rounds. 'deep' ignores the machine's curated
+        # list and runs EVERY applicable, available transform over more rounds.
+        if det.machine and params.depth != "deep":
+            rounds = (
+                params.max_rounds
+                if params.max_rounds is not None
+                else (1 if params.depth == "quick" else None)
+            )
             report = await machines.run_machine(
                 graph,
                 det.machine,
                 det.value,
                 allow_network=params.allow_network,
-                max_rounds=params.max_rounds,
+                max_rounds=rounds,
             )
-            stats = report.to_dict()
+            mode = f"machine '{det.machine}'"
         else:
-            # Unclassified query: just seed it as a Phrase, no machine.
-            graph.add_entity(det.type_id, det.value, dedupe=True)
-            stats = {"transforms_run": 0, "entities_added": 0, "rounds": 0, "skipped_unavailable": []}
+            rounds = (
+                params.max_rounds
+                if params.max_rounds is not None
+                else (1 if params.depth == "quick" else 5)
+            )
+            report = await expand(
+                graph,
+                seed.id,
+                transform_names=None,
+                allow_network=params.allow_network,
+                available_only=True,
+                max_rounds=rounds,
+            )
+            mode = "deep (all applicable transforms)" if params.depth == "deep" else (det.machine or "direct expand")
+        stats = report.to_dict()
 
         layout.apply_layout(graph, params.layout)
 
@@ -1742,7 +1767,7 @@ async def maltego_investigate(params: InvestigateQueryInput) -> str:
             "",
             f"- Detected as **{det.type_id}** (value `{det.value}`)"
             + (f" — {det.note}" if det.note else ""),
-            f"- Machine: {det.machine or 'none (unclassified)'}",
+            f"- Mode: {mode} (depth: {params.depth})",
             f"- Graph '{graph.name}' — {graph.entity_count()} entities, "
             f"{graph.link_count()} links",
             f"- This run: {stats['transforms_run']} transform(s) over "
@@ -2242,6 +2267,127 @@ async def maltego_reset_learning() -> str:
             return "Learning is disabled; nothing to reset."
         learning.store.reset()
         return "Cleared the learning store."
+    except Exception as exc:  # noqa: BLE001
+        return handle_exception(exc)
+
+
+# --- targeted expansion / pathfinding ----------------------------------------
+@mcp.tool(
+    name="maltego_expand_entity",
+    annotations={
+        "title": "Expand Entity",
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True,
+    },
+)
+async def maltego_expand_entity(params: ExpandEntityInput) -> str:
+    """Run ALL applicable, available transforms on ONE entity to pivot from it.
+
+    Use when: you want to dig into a specific node (e.g. a pivot from
+    maltego_identify_pivots) rather than re-running a whole investigation.
+    Records Investigation Memory and links results back to the entity.
+
+    Args:
+        params (ExpandEntityInput):
+            - entity_id (str): Entity to expand (e.g. 'n0').
+            - allow_network (bool): Run network transforms (default True).
+            - max_rounds (int): Expansion rounds from this entity (1-4, default 1).
+
+    Returns:
+        str: Summary of what the expansion discovered.
+    """
+    try:
+        graph = STORE.active_graph()
+        entity = graph.get_entity(params.entity_id)
+        report = await expand(
+            graph,
+            entity.id,
+            transform_names=None,
+            allow_network=params.allow_network,
+            available_only=True,
+            max_rounds=params.max_rounds,
+        )
+        data = report.to_dict()
+        lines = [
+            f"Expanded {entity.id} ({entity.value}): ran {data['transforms_run']} "
+            f"transform(s) over {data['rounds']} round(s), added "
+            f"{data['entities_added']} entities and {data['links_added']} links.",
+        ]
+        if data["skipped_unavailable"]:
+            lines.append("Skipped (no API key): " + ", ".join(data["skipped_unavailable"]))
+        return "\n".join(lines)
+    except Exception as exc:  # noqa: BLE001
+        return handle_exception(exc)
+
+
+@mcp.tool(
+    name="maltego_find_path",
+    annotations={
+        "title": "Find Path Between Entities",
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False,
+    },
+)
+async def maltego_find_path(params: FindPathInput) -> str:
+    """Find the shortest relationship path between two entities (undirected BFS).
+
+    Use when: you want to know how two findings are connected (e.g. does this
+    email relate to that IP, and through what?).
+
+    Args:
+        params (FindPathInput):
+            - source_id (str): Start entity id.
+            - target_id (str): End entity id.
+
+    Returns:
+        str: The shortest path as a chain of entities (with link labels), or a
+        note if no path exists.
+    """
+    try:
+        graph = STORE.active_graph()
+        graph.get_entity(params.source_id)
+        graph.get_entity(params.target_id)
+        if params.source_id == params.target_id:
+            return "Source and target are the same entity."
+        # BFS over the undirected graph; track predecessor + the link used.
+        from collections import deque
+
+        prev = {params.source_id: (None, None)}
+        q = deque([params.source_id])
+        while q:
+            cur = q.popleft()
+            if cur == params.target_id:
+                break
+            for nb, link, _direction in graph.neighbors(cur):
+                if nb.id not in prev:
+                    prev[nb.id] = (cur, link)
+                    q.append(nb.id)
+        if params.target_id not in prev:
+            return (
+                f"No path between {params.source_id} and {params.target_id} "
+                "on the active graph."
+            )
+        # Reconstruct path.
+        chain = []
+        node = params.target_id
+        while node is not None:
+            pnode, link = prev[node]
+            chain.append((node, link))
+            node = pnode
+        chain.reverse()
+        lines = [f"# Path: {params.source_id} → {params.target_id} ({len(chain) - 1} hop(s))", ""]
+        for i, (nid, link) in enumerate(chain):
+            ent = graph.get_entity(nid)
+            if i == 0:
+                lines.append(f"- {ent.value} ({ent.type_id}) [`{nid}`]")
+            else:
+                label = f" —[{link.label}]→" if link and link.label else " →"
+                lines.append(f"-{label} {ent.value} ({ent.type_id}) [`{nid}`]")
+        return "\n".join(lines)
     except Exception as exc:  # noqa: BLE001
         return handle_exception(exc)
 

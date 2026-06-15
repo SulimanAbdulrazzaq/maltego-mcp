@@ -316,8 +316,16 @@ class InvestigateQueryInput(BaseModel):
     allow_network: bool = Field(
         default=True, description="Run network transforms (default True). Set false for offline/passive."
     )
+    depth: str = Field(
+        default="standard",
+        description=(
+            "Investigation depth: 'quick' (1 round, fast), 'standard' (the machine's "
+            "curated transforms), or 'deep' (runs ALL applicable available transforms "
+            "over more rounds — recursive, thorough, slower)."
+        ),
+    )
     max_rounds: Optional[int] = Field(
-        default=None, description="Override the chosen machine's expansion depth.", ge=1, le=4
+        default=None, description="Explicitly override expansion rounds (otherwise set by 'depth').", ge=1, le=8
     )
     layout: str = Field(
         default="hierarchical",
@@ -338,6 +346,14 @@ class InvestigateQueryInput(BaseModel):
         allowed = {"hierarchical", "radial", "force"}
         if v not in allowed:
             raise ValueError(f"layout must be one of {sorted(allowed)}")
+        return v
+
+    @field_validator("depth")
+    @classmethod
+    def _known_depth(cls, v: str) -> str:
+        allowed = {"quick", "standard", "deep"}
+        if v not in allowed:
+            raise ValueError(f"depth must be one of {sorted(allowed)}")
         return v
 
 
@@ -398,3 +414,16 @@ class RenameGraphInput(BaseModel):
 class DeleteGraphInput(BaseModel):
     model_config = _BASE_CONFIG
     name: str = Field(..., description="Name of the open graph to remove from the server.", min_length=1)
+
+
+class ExpandEntityInput(BaseModel):
+    model_config = _BASE_CONFIG
+    entity_id: str = Field(..., description="Id of the entity to expand (e.g. 'n0').", min_length=1)
+    allow_network: bool = Field(default=True, description="Run network transforms (default True).")
+    max_rounds: int = Field(default=1, description="Expansion rounds from this entity.", ge=1, le=4)
+
+
+class FindPathInput(BaseModel):
+    model_config = _BASE_CONFIG
+    source_id: str = Field(..., description="Start entity id (e.g. 'n0').", min_length=1)
+    target_id: str = Field(..., description="End entity id (e.g. 'n5').", min_length=1)

@@ -1,6 +1,6 @@
 [project]
 name = "maltego-mcp"
-version = "0.3.0"
+version = "0.4.0"
 description = "MCP server for driving Maltego CE investigation graphs via the native .mtgx file format, with an extensible transform-provider layer."
 readme = "README.md"
 requires-python = ">=3.10"
