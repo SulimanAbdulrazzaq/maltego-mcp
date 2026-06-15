@@ -5,7 +5,6 @@
 > Maltego `.mtgx` files.
 
 ![MCP](https://img.shields.io/badge/MCP-server-blue)
-![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-plugin-7c3aed)
 ![Python](https://img.shields.io/badge/python-3.10%2B-green)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 ![Tools](https://img.shields.io/badge/tools-52-orange)
@@ -21,7 +20,7 @@ Maltego Community Edition's native graph format.
 
 - [How it works](#how-it-works)
 - [Capabilities at a glance](#capabilities-at-a-glance)
-- [Install as a Claude Code plugin (recommended)](#install-as-a-claude-code-plugin-recommended)
+- [Install as an MCP server (recommended)](#install-as-an-mcp-server-recommended)
 - [Manual / pip install](#manual--pip-install)
 - [Tools](#tools) · [full reference → `TOOLS.md`](TOOLS.md)
 - [Transforms by provider](#transforms-by-provider)
@@ -68,19 +67,11 @@ core or the MCP tools.
 | **Reporting** | Deterministic Markdown / HTML investigation reports (now incl. quality scores). |
 | **Continuation** | Load or merge existing `.mtgx` investigations and keep working. |
 
-## Install as a Claude Code plugin (recommended)
+## Install as an MCP server (recommended)
 
-This repo is both a **plugin** and a **plugin marketplace**. Install it straight from GitHub:
-
-```shell
-# in Claude Code
-/plugin marketplace add SulimanAbdulrazzaq/maltego-mcp
-/plugin install maltego-mcp@maltego-mcp
-```
-
-The bundled MCP server is launched with [`uv`](https://docs.astral.sh/uv/) via `uvx`, which
-auto-installs the Python dependencies in an isolated environment — **no manual `pip install`
-needed**. Install `uv` once if you don't have it:
+This is a standalone **MCP server**. The server is launched with
+[`uv`](https://docs.astral.sh/uv/) via `uvx`, which auto-installs the Python dependencies in an
+isolated environment — **no manual `pip install` needed**. Install `uv` once if you don't have it:
 
 ```shell
 # Windows (PowerShell)
@@ -89,8 +80,44 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-After install, the `maltego_*` tools are available in Claude. Set OSINT keys (optional) in your
-shell before starting Claude Code to enable those providers (see
+### Add it to Claude Code
+
+Register the server straight from GitHub (available in every project — user scope):
+
+```shell
+claude mcp add maltego --scope user -- uvx --from git+https://github.com/SulimanAbdulrazzaq/maltego-mcp.git maltego-mcp
+```
+
+Or run from a local clone (reflects your local edits — best for development):
+
+```shell
+git clone https://github.com/SulimanAbdulrazzaq/maltego-mcp.git
+claude mcp add maltego --scope user -- uvx --from ./maltego-mcp maltego-mcp
+```
+
+> On Windows PowerShell, the `--` separator can be swallowed by the shell. If `claude mcp add`
+> errors with `unknown option '--from'`, add the server by editing your config instead: open
+> `~/.claude.json` and add a `maltego` entry under the top-level `"mcpServers"` object:
+> ```json
+> "maltego": {
+>   "type": "stdio",
+>   "command": "uvx",
+>   "args": ["--from", "git+https://github.com/SulimanAbdulrazzaq/maltego-mcp.git", "maltego-mcp"]
+> }
+> ```
+
+The repo also ships a committed [`.mcp.json`](.mcp.json), so if you simply **open a clone of this
+repo in Claude Code** the `maltego` server is offered automatically (project scope, launched with
+`uvx --from .`).
+
+Verify it connected:
+
+```shell
+claude mcp list   # → maltego: uvx ... - √ Connected
+```
+
+After it connects, the `maltego_*` tools are available in Claude. Set OSINT keys (optional) in
+your shell before starting Claude Code to enable those providers (see
 [Transforms by provider](#transforms-by-provider)).
 
 > Prefer not to use `uv`? See [Manual / pip install](#manual--pip-install) and point the MCP
@@ -101,10 +128,10 @@ shell before starting Claude Code to enable those providers (see
 On Windows, the very first launch occasionally fails with
 `failed to rename ... Access is denied (os error 5)` while unpacking `pywin32` (a transitive
 dependency of `mcp`). This is **Windows Defender** briefly locking the files during real-time
-scanning — not a bug in the plugin. Fixes:
+scanning — not a bug in the server. Fixes:
 
-- **Just retry** — toggle the plugin off/on or restart Claude Code; it succeeds once Defender
-  finishes scanning and the dependency is cached (verified: it works on the second attempt).
+- **Just retry** — restart Claude Code; it succeeds once Defender finishes scanning and the
+  dependency is cached (verified: it works on the second attempt).
 - Or pre-warm the cache once from a terminal: `uvx --from <path-to-this-repo> maltego-mcp`
   (Ctrl-C after it prints nothing — it's a stdio server), then retry in Claude Code.
 - Or add an exclusion for `%LOCALAPPDATA%\uv\cache` in Windows Security → Virus & threat

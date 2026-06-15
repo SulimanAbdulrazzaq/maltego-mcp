@@ -2,7 +2,7 @@
   "mcpServers": {
     "maltego": {
       "command": "uvx",
-      "args": ["--from", "${CLAUDE_PLUGIN_ROOT}", "maltego-mcp"]
+      "args": ["--from", ".", "maltego-mcp"]
     }
   }
 }
