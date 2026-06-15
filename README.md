@@ -8,8 +8,8 @@
 ![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-plugin-7c3aed)
 ![Python](https://img.shields.io/badge/python-3.10%2B-green)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
-![Tools](https://img.shields.io/badge/tools-49-orange)
-![Tests](https://img.shields.io/badge/tests-62%20passing-brightgreen)
+![Tools](https://img.shields.io/badge/tools-50-orange)
+![Tests](https://img.shields.io/badge/tests-70%20passing-brightgreen)
 
 An [MCP](https://modelcontextprotocol.io) server that turns an LLM into a
 **Maltego CE investigation copilot** — an AI-assisted OSINT platform built on
@@ -164,7 +164,7 @@ npx @modelcontextprotocol/inspector maltego-mcp
 
 ## Tools
 
-**49 tools.** The tables below group them by area. For the **complete reference with every
+**50 tools.** The tables below group them by area. For the **complete reference with every
 argument, type, and default**, see [`TOOLS.md`](TOOLS.md) (auto-generated from the live tool
 schemas — the file an AI agent should read to learn the exact interface).
 
@@ -206,7 +206,13 @@ schemas — the file an AI agent should read to learn the exact interface).
 ### Unified entry point (primary interface for agents)
 | Tool | Description |
 |------|-------------|
-| `maltego_investigate` | Detect type → build/reuse graph → run a machine → layout → analyze → recommend, all in one call, recording everything to Investigation Memory. |
+| `maltego_investigate` | **One call does it all**: detect type → build/expand graph → layout → summarize → rank → next-best-actions → **inline report**, returned as one finished briefing. No follow-up calls or file writes needed. |
+| `maltego_guide` | Returns the server's usage guidance (workflow + tool map) on demand. |
+
+The AI is told *how* to use these tools via the server's **MCP instructions** (auto-injected
+into the model's context — this is how the assistant knows to run an investigation to completion
+instead of asking after each step). You can also invoke the bundled command
+**`/maltego-mcp:investigate <target>`** or the **`investigate` / `triage` / `report` prompts**.
 
 ### AI-oriented analysis (the "copilot")
 | Tool | Description |
@@ -374,7 +380,7 @@ register_machine(Machine(
 
 ```
 src/maltego_mcp/
-├── server.py          # FastMCP server + all 49 tool registrations
+├── server.py          # FastMCP server (with MCP instructions) + 50 tools + prompts
 ├── models.py          # Pydantic input models
 ├── entities.py        # Maltego entity-type catalog
 ├── formatting.py      # markdown/JSON response helpers + error mapping

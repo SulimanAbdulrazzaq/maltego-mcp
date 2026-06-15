@@ -1,5 +1,5 @@
 {
-  "tool_count": 49,
+  "tool_count": 50,
   "tools": [
     {
       "name": "maltego_add_entity",
@@ -367,6 +367,12 @@
       ]
     },
     {
+      "name": "maltego_guide",
+      "summary": "Return how to use this server: the autonomous workflow and the tool map.",
+      "description": "Return how to use this server: the autonomous workflow and the tool map.\n\n    Use when: you are unsure which tool to call or how the investigation flow\n    works. This is the same guidance the server provides as MCP instructions —\n    call it to pull the workflow into context. Next: usually `maltego_investigate`.\n\n    Returns:\n        str: The full usage guidance (workflow, tool map, conventions).",
+      "arguments": []
+    },
+    {
       "name": "maltego_identify_pivots",
       "summary": "Identify the most promising pivot entities in the active graph.",
       "description": "Identify the most promising pivot entities in the active graph.\n\n    Deterministically ranks entities that connect many others (degree >= 2),\n    which are typically the best points to pivot an investigation (shared IPs,\n    central emails, etc.).\n\n    Args:\n        params (AnalysisLimitInput):\n            - limit (int): Max pivots to return (1-50, default 10).\n            - response_format (ResponseFormat): 'markdown' (default) or 'json'.\n\n    Returns:\n        str: Ranked pivots with id, value, type, degree, and a reason.",
@@ -437,8 +443,8 @@
     },
     {
       "name": "maltego_investigate",
-      "summary": "One-call investigation: detect, build, expand, analyze, and recommend.",
-      "description": "One-call investigation: detect, build, expand, analyze, and recommend.\n\n    The primary high-level interface. Given any query (domain, email, IPv4/IPv6,\n    or URL) it: auto-detects the entity type, ensures an active graph, selects an\n    appropriate investigation machine, runs it (recording everything into\n    Investigation Memory), applies a layout, scores entities, and returns a\n    consolidated briefing with discoveries and ranked next actions.\n\n    Args:\n        params (InvestigateQueryInput):\n            - query (str): What to investigate (type auto-detected).\n            - allow_network (bool): Run network transforms (default True).\n            - max_rounds (Optional[int]): Override machine depth.\n            - layout (str): Layout to apply ('hierarchical'/'radial'/'force').\n\n    Returns:\n        str: A briefing: detected type, investigation stats, important\n        discoveries, recommended next actions, and report availability.",
+      "summary": "PRIMARY entry point — run a COMPLETE investigation in one call.",
+      "description": "PRIMARY entry point — run a COMPLETE investigation in one call.\n\n    Use when the user wants to investigate anything (domain, email, IPv4/IPv6, or\n    URL, or a bare value). This is the default for \"investigate X\". It\n    auto-detects the type, builds/expands the graph via the right machine\n    (recording Investigation Memory), lays it out, summarizes, scores/ranks\n    entities, computes next-best-actions, and includes an inline report — and\n    returns ONE finished briefing. Present it directly; do not call summarize/\n    list/suggest afterwards. Next: offer to maltego_save_graph or\n    maltego_export_report (do not write files unless asked).\n\n    Args:\n        params (InvestigateQueryInput):\n            - query (str): What to investigate (type auto-detected).\n            - allow_network (bool): Run network transforms (default True).\n            - max_rounds (Optional[int]): Override machine expansion depth.\n            - layout (str): 'hierarchical' | 'radial' | 'force'.\n            - include_report (bool): Append the full inline report (default True).\n            - include_next_actions (bool): Include NBA recommendations (default True).\n\n    Returns:\n        str: One complete briefing — detection + run stats, important discoveries,\n        recommended next actions, and (by default) a full inline report. No files\n        are written.",
       "arguments": [
         {
           "name": "query",
@@ -470,6 +476,22 @@
           "required": false,
           "default": "hierarchical",
           "description": "Layout to apply after investigating: 'hierarchical', 'radial', or 'force'.",
+          "enum": null
+        },
+        {
+          "name": "include_report",
+          "type": "boolean",
+          "required": false,
+          "default": true,
+          "description": "Include a full inline Markdown report in the briefing (default True).",
+          "enum": null
+        },
+        {
+          "name": "include_next_actions",
+          "type": "boolean",
+          "required": false,
+          "default": true,
+          "description": "Include ranked next-best-action recommendations in the briefing (default True).",
           "enum": null
         }
       ]
@@ -755,8 +777,8 @@
     },
     {
       "name": "maltego_next_best_actions",
-      "summary": "Recommend the most valuable next investigative moves (decision engine).",
-      "description": "Recommend the most valuable next investigative moves (decision engine).\n\n    A deterministic, explainable ranking that weighs entity importance, expected\n    information gain, confidence, provider availability, and — crucially — the\n    Investigation Memory (so it never re-suggests a transform already attempted\n    on an entity). Supersedes maltego_suggest_next_steps with richer reasoning.\n\n    Args:\n        params (AnalysisLimitInput):\n            - limit (int): Max recommendations (1-50, default 10).\n            - response_format (ResponseFormat): 'markdown' (default) or 'json'.\n\n    Returns:\n        str: Ranked recommendations, each with transform, target entity, a\n        deterministic score, expected gain, and a plain-English reason.",
+      "summary": "Recommend the most valuable next moves (decision engine). Use when deciding what to do next.",
+      "description": "Recommend the most valuable next moves (decision engine). Use when deciding what to do next.\n\n    A deterministic, explainable ranking that weighs entity importance, expected\n    information gain, confidence, provider availability, and — crucially — the\n    Investigation Memory (so it never re-suggests a transform already attempted\n    on an entity). Supersedes maltego_suggest_next_steps with richer reasoning.\n\n    Args:\n        params (AnalysisLimitInput):\n            - limit (int): Max recommendations (1-50, default 10).\n            - response_format (ResponseFormat): 'markdown' (default) or 'json'.\n\n    Returns:\n        str: Ranked recommendations, each with transform, target entity, a\n        deterministic score, expected gain, and a plain-English reason.",
       "arguments": [
         {
           "name": "limit",
@@ -974,8 +996,8 @@
     },
     {
       "name": "maltego_suggest_next_steps",
-      "summary": "Suggest concrete next transforms to run on the active graph.",
-      "description": "Suggest concrete next transforms to run on the active graph.\n\n    Deterministically recommends transforms to advance the investigation,\n    prioritising the most-connected entities and available transforms first.\n    Unavailable (missing-key) transforms are still listed but flagged.\n\n    Args:\n        params (AnalysisLimitInput):\n            - limit (int): Max suggestions (1-50, default 10).\n            - response_format (ResponseFormat): 'markdown' (default) or 'json'.\n\n    Returns:\n        str: Suggestions of (transform, target entity, expected output types).",
+      "summary": "Legacy simple heuristic for next transforms — prefer maltego_next_best_actions.",
+      "description": "Legacy simple heuristic for next transforms — prefer maltego_next_best_actions.\n\n    Use when: you want the basic heuristic list. For real recommendations use\n    maltego_next_best_actions (memory-aware, ranked, explainable). Kept for\n    backward compatibility.\n\n    Deterministically recommends transforms to advance the investigation,\n    prioritising the most-connected entities and available transforms first.\n    Unavailable (missing-key) transforms are still listed but flagged.\n\n    Args:\n        params (AnalysisLimitInput):\n            - limit (int): Max suggestions (1-50, default 10).\n            - response_format (ResponseFormat): 'markdown' (default) or 'json'.\n\n    Returns:\n        str: Suggestions of (transform, target entity, expected output types).",
       "arguments": [
         {
           "name": "limit",

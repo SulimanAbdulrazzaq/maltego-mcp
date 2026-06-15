@@ -73,10 +73,11 @@ from maltego_mcp.models import (
     SummarizeGraphInput,
     UpdateEntityInput,
 )
+from maltego_mcp.guidance import INSTRUCTIONS
 from maltego_mcp.orchestration import expand, run_and_record
 from maltego_mcp.transforms import providers as provider_registry, registry
 
-mcp = FastMCP("maltego_mcp")
+mcp = FastMCP("maltego_mcp", instructions=INSTRUCTIONS)
 
 # Single source of truth for all open graphs in this process.
 STORE = GraphStore()
@@ -101,8 +102,58 @@ def _active_or_create(default_name: str) -> Graph:
         return STORE.create_graph(name)
 
 
+def _briefing(
+    graph: Graph,
+    header_lines: list,
+    *,
+    include_report: bool = True,
+    include_next_actions: bool = True,
+) -> str:
+    """Assemble ONE complete, finished investigation briefing.
+
+    Combines a header (supplied by the caller) with key discoveries, ranked
+    next-best-actions, and an inline deterministic report — so the assistant can
+    present a finished result without making follow-up calls. Reads as a closed
+    result (no "want me to…?" prompts).
+    """
+
+    summary = analysis.summarize_graph(graph)
+    lines = list(header_lines)
+
+    lines += ["", "## Important discoveries"]
+    if summary["most_connected"]:
+        for e in summary["most_connected"][:5]:
+            lines.append(f"- {e['value']} ({e['type']}) — degree {e['degree']}")
+    else:
+        lines.append("- (no connected entities yet)")
+
+    if include_next_actions:
+        recs = recommendation.next_best_actions(graph, limit=5)
+        bus.emit(RECOMMENDATION_UPDATED, {"count": len(recs)})
+        lines += ["", "## Recommended next actions"]
+        if recs:
+            for r in recs:
+                flag = "" if r["available"] else " [needs API key]"
+                lines.append(
+                    f"- `{r['transform']}` on {r['entity_value']} "
+                    f"(score {r['score']}){flag}"
+                )
+        else:
+            lines.append("- None — every applicable pivot has been tried.")
+
+    if include_report:
+        lines += ["", "---", "", reporting.build_markdown_report(graph)]
+    else:
+        lines += [
+            "",
+            "_Save to a `.mtgx` with maltego_save_graph (open it in Maltego CE), "
+            "or export a report with maltego_generate_report._",
+        ]
+    return "\n".join(lines)
+
+
 async def _investigate(seed_type: str, params: InvestigateInput, label: str) -> str:
-    """Shared body for investigate_domain/email/ip."""
+    """Shared body for investigate_domain/email/ip — returns a full briefing."""
 
     try:
         graph = _active_or_create(f"{label}-{params.value}")
@@ -115,19 +166,21 @@ async def _investigate(seed_type: str, params: InvestigateInput, label: str) -> 
             available_only=True,
             max_rounds=params.max_rounds,
         )
+        layout.apply_layout(graph, "hierarchical")
         data = report.to_dict()
-        lines = [
-            f"Investigated {label} '{params.value}' on graph '{graph.name}':",
-            f"- ran {data['transforms_run']} transform(s) over {data['rounds']} round(s)",
-            f"- added {data['entities_added']} entities and {data['links_added']} links",
-            f"- graph now has {graph.entity_count()} entities, {graph.link_count()} links",
+        header = [
+            f"# Investigation: {label} '{params.value}'",
+            "",
+            f"- Graph '{graph.name}' — {graph.entity_count()} entities, "
+            f"{graph.link_count()} links",
+            f"- This run: {data['transforms_run']} transform(s) over "
+            f"{data['rounds']} round(s), {data['entities_added']} new entities",
         ]
         if data["skipped_unavailable"]:
-            lines.append(
-                "- skipped (no API key): " + ", ".join(data["skipped_unavailable"])
+            header.append(
+                "- Skipped (no API key): " + ", ".join(data["skipped_unavailable"])
             )
-        lines.append("Use maltego_summarize_graph or maltego_generate_report for details.")
-        return "\n".join(lines)
+        return _briefing(graph, header)
     except Exception as exc:  # noqa: BLE001
         return handle_exception(exc)
 
@@ -1058,7 +1111,11 @@ async def maltego_identify_pivots(params: AnalysisLimitInput) -> str:
     },
 )
 async def maltego_suggest_next_steps(params: AnalysisLimitInput) -> str:
-    """Suggest concrete next transforms to run on the active graph.
+    """Legacy simple heuristic for next transforms — prefer maltego_next_best_actions.
+
+    Use when: you want the basic heuristic list. For real recommendations use
+    maltego_next_best_actions (memory-aware, ranked, explainable). Kept for
+    backward compatibility.
 
     Deterministically recommends transforms to advance the investigation,
     prioritising the most-connected entities and available transforms first.
@@ -1587,7 +1644,7 @@ async def maltego_get_investigation_timeline() -> str:
     },
 )
 async def maltego_next_best_actions(params: AnalysisLimitInput) -> str:
-    """Recommend the most valuable next investigative moves (decision engine).
+    """Recommend the most valuable next moves (decision engine). Use when deciding what to do next.
 
     A deterministic, explainable ranking that weighs entity importance, expected
     information gain, confidence, provider availability, and — crucially — the
@@ -1635,24 +1692,30 @@ async def maltego_next_best_actions(params: AnalysisLimitInput) -> str:
     },
 )
 async def maltego_investigate(params: InvestigateQueryInput) -> str:
-    """One-call investigation: detect, build, expand, analyze, and recommend.
+    """PRIMARY entry point — run a COMPLETE investigation in one call.
 
-    The primary high-level interface. Given any query (domain, email, IPv4/IPv6,
-    or URL) it: auto-detects the entity type, ensures an active graph, selects an
-    appropriate investigation machine, runs it (recording everything into
-    Investigation Memory), applies a layout, scores entities, and returns a
-    consolidated briefing with discoveries and ranked next actions.
+    Use when the user wants to investigate anything (domain, email, IPv4/IPv6, or
+    URL, or a bare value). This is the default for "investigate X". It
+    auto-detects the type, builds/expands the graph via the right machine
+    (recording Investigation Memory), lays it out, summarizes, scores/ranks
+    entities, computes next-best-actions, and includes an inline report — and
+    returns ONE finished briefing. Present it directly; do not call summarize/
+    list/suggest afterwards. Next: offer to maltego_save_graph or
+    maltego_export_report (do not write files unless asked).
 
     Args:
         params (InvestigateQueryInput):
             - query (str): What to investigate (type auto-detected).
             - allow_network (bool): Run network transforms (default True).
-            - max_rounds (Optional[int]): Override machine depth.
-            - layout (str): Layout to apply ('hierarchical'/'radial'/'force').
+            - max_rounds (Optional[int]): Override machine expansion depth.
+            - layout (str): 'hierarchical' | 'radial' | 'force'.
+            - include_report (bool): Append the full inline report (default True).
+            - include_next_actions (bool): Include NBA recommendations (default True).
 
     Returns:
-        str: A briefing: detected type, investigation stats, important
-        discoveries, recommended next actions, and report availability.
+        str: One complete briefing — detection + run stats, important discoveries,
+        recommended next actions, and (by default) a full inline report. No files
+        are written.
     """
     try:
         det = detect(params.query)
@@ -1673,48 +1736,28 @@ async def maltego_investigate(params: InvestigateQueryInput) -> str:
             stats = {"transforms_run": 0, "entities_added": 0, "rounds": 0, "skipped_unavailable": []}
 
         layout.apply_layout(graph, params.layout)
-        summary = analysis.summarize_graph(graph)
-        recs = recommendation.next_best_actions(graph, limit=5)
-        bus.emit(RECOMMENDATION_UPDATED, {"count": len(recs)})
 
-        lines = [
+        header = [
             f"# Investigation: {params.query}",
             "",
             f"- Detected as **{det.type_id}** (value `{det.value}`)"
             + (f" — {det.note}" if det.note else ""),
             f"- Machine: {det.machine or 'none (unclassified)'}",
-            f"- Graph: '{graph.name}' — {graph.entity_count()} entities, "
+            f"- Graph '{graph.name}' — {graph.entity_count()} entities, "
             f"{graph.link_count()} links",
-            f"- This run: {stats['transforms_run']} transforms over "
+            f"- This run: {stats['transforms_run']} transform(s) over "
             f"{stats.get('rounds', 0)} round(s), {stats.get('entities_added', 0)} new entities",
         ]
         if stats.get("skipped_unavailable"):
-            lines.append(
+            header.append(
                 "- Skipped (no API key): " + ", ".join(stats["skipped_unavailable"])
             )
-        lines.append("")
-        lines.append("## Important discoveries")
-        if summary["most_connected"]:
-            for e in summary["most_connected"][:5]:
-                lines.append(f"- {e['value']} ({e['type']}) — degree {e['degree']}")
-        else:
-            lines.append("- (no connected entities yet)")
-        lines.append("")
-        lines.append("## Recommended next actions")
-        if recs:
-            for r in recs:
-                flag = "" if r["available"] else " [needs API key]"
-                lines.append(f"- `{r['transform']}` on {r['entity_value']} (score {r['score']}){flag}")
-        else:
-            lines.append("- None — every applicable pivot has been tried.")
-        lines.append("")
-        lines.append(
-            "## Reports & next tools\n"
-            "- Full report: maltego_generate_report | Save graph: maltego_save_graph\n"
-            "- Why an entity is here: maltego_explain_why | Timeline: "
-            "maltego_get_investigation_timeline"
+        return _briefing(
+            graph,
+            header,
+            include_report=params.include_report,
+            include_next_actions=params.include_next_actions,
         )
-        return "\n".join(lines)
     except Exception as exc:  # noqa: BLE001
         return handle_exception(exc)
 
@@ -2201,6 +2244,62 @@ async def maltego_reset_learning() -> str:
         return "Cleared the learning store."
     except Exception as exc:  # noqa: BLE001
         return handle_exception(exc)
+
+
+# --- guidance --------------------------------------------------------------
+@mcp.tool(
+    name="maltego_guide",
+    annotations={
+        "title": "Maltego MCP Guide",
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False,
+    },
+)
+async def maltego_guide() -> str:
+    """Return how to use this server: the autonomous workflow and the tool map.
+
+    Use when: you are unsure which tool to call or how the investigation flow
+    works. This is the same guidance the server provides as MCP instructions —
+    call it to pull the workflow into context. Next: usually `maltego_investigate`.
+
+    Returns:
+        str: The full usage guidance (workflow, tool map, conventions).
+    """
+    return INSTRUCTIONS
+
+
+# --- prompt templates --------------------------------------------------------
+@mcp.prompt(title="Investigate a target")
+def investigate_prompt(target: str) -> str:
+    """Guided autonomous investigation of a single target."""
+    return (
+        f"Investigate '{target}' with the maltego_investigate tool, then present the "
+        "returned briefing (key findings + recommended next actions) directly. Do NOT "
+        "ask the user between read-only steps; only stop if blocked (a needed API key "
+        "is missing, a file would be overwritten, or the target is ambiguous). End by "
+        "offering, in one line, to save the .mtgx (maltego_save_graph) or export a report."
+    )
+
+
+@mcp.prompt(title="Triage the active graph")
+def triage_prompt() -> str:
+    """Prioritized assessment of the current investigation graph."""
+    return (
+        "Triage the active investigation graph: use maltego_summarize_graph, "
+        "maltego_identify_pivots, and maltego_next_best_actions, then give a concise, "
+        "prioritized assessment of the most meaningful findings and what to pivot on next."
+    )
+
+
+@mcp.prompt(title="Investigation report")
+def report_prompt() -> str:
+    """Produce a shareable report of the active graph."""
+    return (
+        "Generate a shareable investigation report for the active graph with "
+        "maltego_generate_report (markdown) and summarize its key findings for the user."
+    )
 
 
 def main() -> None:

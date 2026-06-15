@@ -323,6 +323,14 @@ class InvestigateQueryInput(BaseModel):
         default="hierarchical",
         description="Layout to apply after investigating: 'hierarchical', 'radial', or 'force'.",
     )
+    include_report: bool = Field(
+        default=True,
+        description="Include a full inline Markdown report in the briefing (default True).",
+    )
+    include_next_actions: bool = Field(
+        default=True,
+        description="Include ranked next-best-action recommendations in the briefing (default True).",
+    )
 
     @field_validator("layout")
     @classmethod

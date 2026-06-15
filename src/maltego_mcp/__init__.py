@@ -10,4 +10,4 @@ design extensible so that a real Maltego API or third-party OSINT services can
 be added later without reworking the core.
 """
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
